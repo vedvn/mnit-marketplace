@@ -1,0 +1,106 @@
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function middleware(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request,
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  // Refresh session if expired - required for Server Components
+  // https://supabase.com/docs/guides/auth/server-side/nextjs
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // Protect internal routes, but exclude login, static assets, etc.
+  const path = request.nextUrl.pathname;
+  const isProtectedPath = (
+    path.startsWith('/market') ||
+    path.startsWith('/sell') ||
+    path.startsWith('/profile') ||
+    path.startsWith('/employee') ||
+    path.startsWith('/admin')
+  );
+
+  if (user && path !== '/banned') {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('is_banned, welcome_email_sent, phone_number')
+      .eq('id', user.id)
+      .single();
+    
+    // 1. Banned check
+    if (profile?.is_banned) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/banned';
+      return NextResponse.redirect(url);
+    }
+
+    // 2. Welcome email (fire once, on first login)
+    if (profile && profile.welcome_email_sent === false) {
+      await supabase.from('users').update({ welcome_email_sent: true }).eq('id', user.id);
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email/welcome`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal-secret': process.env.INTERNAL_API_SECRET || '',
+        },
+        body: JSON.stringify({
+          email: user.email,
+          name: user.user_metadata?.full_name || 'User',
+        }),
+      }).catch(console.error);
+    }
+
+    // 3. Profile completion gate — redirect to /complete-profile if phone is missing
+    const profileComplete = !!profile?.phone_number;
+    const isOnCompleteProfile = path === '/complete-profile';
+    if (!profileComplete && !isOnCompleteProfile) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/complete-profile';
+      return NextResponse.redirect(url);
+    }
+  }
+
+  if (isProtectedPath && !user) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
+  return supabaseResponse
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}

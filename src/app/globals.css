@@ -1,26 +1,94 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter), sans-serif;
+  --font-display: var(--font-outfit), sans-serif;
+
+  /* Premium Terracotta/Crimson Scale (MNIT Signature) */
+  --color-primary-50: #fef2f2;
+  --color-primary-100: #fee2e2;
+  --color-primary-400: #f87171;
+  --color-primary-500: #ef4444;
+  --color-primary-600: #dc2626;
+  --color-primary-900: #7f1d1d;
+
+  --color-accent: #059669; /* Emerald for success states */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #09090b; /* zinc-950 */
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Base utility for architectural borders */
+.bento-border {
+  border: 1px solid #e4e4e7; /* zinc-200 */
+}
+.bento-border-t { border-top: 1px solid #e4e4e7; }
+.bento-border-b { border-bottom: 1px solid #e4e4e7; }
+
+/* Brutalist / Editorial Solid Card */
+.glass {
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+}
+
+.glass-card {
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  box-shadow: 4px 4px 0px 0px rgba(0,0,0,0.05);
+}
+
+.glass-card:hover {
+  box-shadow: 4px 4px 0px 0px rgba(0,0,0,0.1);
+}
+
+/* Typography styles */
+.display-title {
+  font-family: var(--font-display);
+  letter-spacing: -0.04em;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.mono-subtitle {
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #71717a; /* zinc-500 */
+}
+
+/* Utility Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Base custom styles */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
