@@ -33,14 +33,54 @@ function CaptureCore() {
     }
   };
 
+  const compressImage = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const MAX_DIMENSION = 1200;
+          if (width > height) {
+            if (width > MAX_DIMENSION) {
+              height = Math.round(height * (MAX_DIMENSION / width));
+              width = MAX_DIMENSION;
+            }
+          } else {
+            if (height > MAX_DIMENSION) {
+              width = Math.round(width * (MAX_DIMENSION / height));
+              height = MAX_DIMENSION;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Compression failed'));
+          }, 'image/jpeg', 0.7);
+        };
+        img.onerror = () => reject(new Error('Image failed to load'));
+        img.src = event.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('File read failed'));
+      reader.readAsDataURL(file);
+    });
+  };
+
   const uploadPhoto = async () => {
     if (!file || !sessionId) return;
     setUploading(true);
     setError(null);
     
     try {
+      const compressedBlob = await compressImage(file);
+      
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', compressedBlob, file.name || 'live_photo.jpg');
       formData.append('session_id', sessionId);
       
       const res = await fetch('/api/camera-session/upload', {
