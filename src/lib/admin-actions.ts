@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 
@@ -121,6 +122,22 @@ export async function adminUnbanUser(userId: string) {
       banned_until: null
     })
     .eq('id', userId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  return { success: true };
+}
+
+export async function adminDeleteTransaction(transactionId: string) {
+  const cleared = await verifyAdminClearance();
+  if (!cleared) return { error: 'Unauthorized' };
+
+  const adminSupabase = createAdminClient();
+  const { error } = await adminSupabase
+    .from('transactions')
+    .delete()
+    .eq('id', transactionId);
 
   if (error) return { error: error.message };
 

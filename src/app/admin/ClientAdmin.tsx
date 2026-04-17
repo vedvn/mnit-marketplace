@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAdminDashboardData, adminBanUser, adminUnbanUser } from '@/lib/admin-actions';
+import { getAdminDashboardData, adminBanUser, adminUnbanUser, adminDeleteTransaction } from '@/lib/admin-actions';
 import { getPendingProducts, approveProduct, rejectProduct } from '@/lib/employee-actions';
-import { Loader2, ShieldAlert, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users } from 'lucide-react';
+import { Loader2, ShieldAlert, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users, Trash2 } from 'lucide-react';
 
 export default function ClientAdmin() {
   const [loading, setLoading] = useState(true);
@@ -65,6 +65,14 @@ export default function ClientAdmin() {
     if (!confirm("Remove ban from this user?")) return;
     setActionLoading(userId);
     await adminUnbanUser(userId);
+    await fetchData();
+    setActionLoading(null);
+  }
+
+  async function handleDeleteTx(txId: string) {
+    if (!confirm('Are you sure you want to permanently delete this transaction? This cannot be undone.')) return;
+    setActionLoading(txId);
+    await adminDeleteTransaction(txId);
     await fetchData();
     setActionLoading(null);
   }
@@ -167,6 +175,7 @@ export default function ClientAdmin() {
                     <th className="pb-3 px-4 font-bold">Fee</th>
                     <th className="pb-3 px-4 font-bold">Pay Status</th>
                     <th className="pb-3 px-4 font-bold">Method</th>
+                    <th className="pb-3 px-4 font-bold">Delete</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5">
@@ -181,10 +190,20 @@ export default function ClientAdmin() {
                         </span>
                       </td>
                       <td className="py-4 px-4 text-foreground/60">{tx.payment_method || 'N/A'}</td>
+                      <td className="py-4 px-4">
+                        <button
+                          onClick={() => handleDeleteTx(tx.id)}
+                          disabled={actionLoading === tx.id}
+                          className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors disabled:opacity-40"
+                          title="Delete transaction"
+                        >
+                          {actionLoading === tx.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                   {(!dashboardData?.transactions || dashboardData.transactions.length === 0) && (
-                    <tr><td colSpan={5} className="py-8 justify-center text-center text-foreground/50">No transactions recorded yet.</td></tr>
+                    <tr><td colSpan={6} className="py-8 justify-center text-center text-foreground/50">No transactions recorded yet.</td></tr>
                   )}
                 </tbody>
               </table>
