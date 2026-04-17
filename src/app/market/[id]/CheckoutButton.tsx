@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { createOrder } from '@/lib/market-actions';
 import { Loader2, ShieldBan, LogIn, ShieldCheck, IndianRupee } from 'lucide-react';
 import Script from 'next/script';
@@ -18,6 +18,7 @@ export default function CheckoutButton({ productId, price, isLoggedIn, productTi
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const pendingOrderId = useRef<string | null>(null);
   const router = useRouter();
 
   const platformFee = 10;
@@ -49,6 +50,21 @@ export default function CheckoutButton({ productId, price, isLoggedIn, productTi
     );
   }
 
+  async function cancelPendingOrder() {
+    if (!pendingOrderId.current) return;
+    try {
+      await fetch('/api/checkout/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ razorpay_order_id: pendingOrderId.current }),
+      });
+    } catch {
+      // Best-effort cleanup, ignore errors
+    } finally {
+      pendingOrderId.current = null;
+    }
+  }
+
   async function handlePayment() {
     setLoading(true);
     setError(null);
@@ -57,6 +73,9 @@ export default function CheckoutButton({ productId, price, isLoggedIn, productTi
     try {
       const orderData = await createOrder(productId);
       if (orderData.error) { setError(orderData.error); setLoading(false); return; }
+
+      // Store order ID so we can cancel it if the user dismisses
+      pendingOrderId.current = orderData.orderId!;
 
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
@@ -67,6 +86,8 @@ export default function CheckoutButton({ productId, price, isLoggedIn, productTi
         image: '/favicon.ico',
         order_id: orderData.orderId,
         handler: async function (response: any) {
+          // Payment succeeded — clear the pending ref so we don't cancel it
+          pendingOrderId.current = null;
           try {
             const res = await fetch('/api/checkout/complete', {
               method: 'POST',
@@ -93,12 +114,18 @@ export default function CheckoutButton({ productId, price, isLoggedIn, productTi
         prefill: {},
         theme: { color: '#4f46e5' },
         modal: {
-          ondismiss: function () { setLoading(false); }
+          ondismiss: function () {
+            // User closed the Razorpay popup — cancel the pending transaction
+            cancelPendingOrder();
+            setLoading(false);
+          }
         }
       };
 
       const rzp = new (window as any).Razorpay(options);
       rzp.on('payment.failed', function (response: any) {
+        // Payment gateway rejected — cancel the pending transaction
+        cancelPendingOrder();
         setError('Payment failed: ' + response.error.description);
         setLoading(false);
       });
