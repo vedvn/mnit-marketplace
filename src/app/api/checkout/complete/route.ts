@@ -99,6 +99,18 @@ export async function POST(request: NextRequest) {
       }),
     }).catch(console.error);
 
+    // 6c. Email buyer — receipt instruction
+    fetch(`${appUrl}/api/email/item-received`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': internalSecret },
+      body: JSON.stringify({
+        email: buyer?.email,
+        name: buyer?.name,
+        productTitle: (tx.product as any)?.title,
+        sellerName: (tx.seller as any)?.name,
+      }),
+    }).catch(console.error);
+
     return NextResponse.json({ success: true, transactionId: tx.id });
 
   } catch (err: any) {

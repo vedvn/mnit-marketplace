@@ -45,9 +45,14 @@ export async function getAdminDashboardData() {
   }
 
   // 2. Get financial data (transactions)
-  const { data: transactions } = await supabase
+  const { data: transactions } = await adminSupabase
     .from('transactions')
-    .select('*')
+    .select(`
+      *,
+      product:products(title),
+      buyer:users!buyer_id(name, email, phone_number),
+      seller:users!seller_id(name, email, phone_number, bank_account_number, bank_ifsc, upi_id)
+    `)
     .order('created_at', { ascending: false });
 
   // 3. Aggregate 
@@ -170,6 +175,22 @@ export async function adminDeleteTransaction(transactionId: string) {
   const { error } = await adminSupabase
     .from('transactions')
     .delete()
+    .eq('id', transactionId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  return { success: true };
+}
+
+export async function adminUpdatePayoutStatus(transactionId: string, status: 'PENDING' | 'SCHEDULED' | 'COMPLETED') {
+  const cleared = await verifyAdminClearance();
+  if (!cleared) return { error: 'Unauthorized' };
+
+  const adminSupabase = createAdminClient();
+  const { error } = await adminSupabase
+    .from('transactions')
+    .update({ payout_status: status })
     .eq('id', transactionId);
 
   if (error) return { error: error.message };

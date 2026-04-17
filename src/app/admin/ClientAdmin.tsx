@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAdminDashboardData, adminBanUser, adminUnbanUser, adminDeleteTransaction, adminCreateCategory, adminDeleteCategory } from '@/lib/admin-actions';
+import { getAdminDashboardData, adminBanUser, adminUnbanUser, adminDeleteTransaction, adminCreateCategory, adminDeleteCategory, adminUpdatePayoutStatus } from '@/lib/admin-actions';
 import { getPendingProducts, approveProduct, rejectProduct } from '@/lib/employee-actions';
-import { Loader2, ShieldAlert, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users, Trash2, Tag, PlusCircle } from 'lucide-react';
+import { Loader2, ShieldAlert, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users, Trash2, Tag, PlusCircle, ChevronDown, ChevronUp, CheckCircle2, Clock, CreditCard, ExternalLink, Phone } from 'lucide-react';
 
 export default function ClientAdmin() {
   const [loading, setLoading] = useState(true);
@@ -12,6 +12,7 @@ export default function ClientAdmin() {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [expandedTx, setExpandedTx] = useState<string | null>(null);
 
   // Broadcast State
   const [isBroadcasting, setIsBroadcasting] = useState(false);
@@ -51,6 +52,13 @@ export default function ClientAdmin() {
   async function handleReject(id: string) {
     setActionLoading(id);
     await rejectProduct(id);
+    await fetchData();
+    setActionLoading(null);
+  }
+
+  async function handlePayoutStatus(txId: string, status: 'PENDING' | 'SCHEDULED' | 'COMPLETED') {
+    setActionLoading(txId);
+    await adminUpdatePayoutStatus(txId, status);
     await fetchData();
     setActionLoading(null);
   }
@@ -187,51 +195,153 @@ export default function ClientAdmin() {
             </div>
           </div>
 
-          <div className="glass-card p-6 rounded-2xl bento-border mt-8">
-            <h3 className="font-bold uppercase tracking-wider mb-6 pb-4 border-b border-black/5">Recent Transactions</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead>
-                  <tr className="text-foreground/50 uppercase tracking-wider border-b border-black/5">
-                    <th className="pb-3 px-4 font-bold">Date</th>
-                    <th className="pb-3 px-4 font-bold">Amount</th>
-                    <th className="pb-3 px-4 font-bold">Fee</th>
-                    <th className="pb-3 px-4 font-bold">Pay Status</th>
-                    <th className="pb-3 px-4 font-bold">Method</th>
-                    <th className="pb-3 px-4 font-bold">Delete</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black/5">
-                  {dashboardData?.transactions?.slice(0, 20).map((tx: any) => (
-                    <tr key={tx.id} className="hover:bg-foreground/5">
-                      <td className="py-4 px-4">{new Date(tx.created_at).toLocaleDateString()}</td>
-                      <td className="py-4 px-4 font-bold text-emerald-600">₹{tx.amount_paid}</td>
-                      <td className="py-4 px-4 text-primary-600">₹{tx.platform_fee}</td>
-                      <td className="py-4 px-4">
-                        <span className={`px-2 py-1 text-[10px] uppercase font-bold rounded-full ${tx.payment_status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-700' : 'bg-amber-500/10 text-amber-700'}`}>
-                          {tx.payment_status}
+    <div className="glass-card p-6 rounded-2xl bento-border mt-8">
+      <h3 className="font-bold uppercase tracking-wider mb-6 pb-4 border-b border-black/5">Recent Transactions</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm whitespace-nowrap">
+          <thead>
+            <tr className="text-foreground/50 uppercase tracking-wider border-b border-black/5">
+              <th className="pb-3 px-4 font-bold">Product</th>
+              <th className="pb-3 px-4 font-bold">Amount</th>
+              <th className="pb-3 px-4 font-bold">Payment</th>
+              <th className="pb-3 px-4 font-bold">Delivery</th>
+              <th className="pb-3 px-4 font-bold">Payout</th>
+              <th className="pb-3 px-4 font-bold text-right text-[10px]">Details</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-black/5">
+            {dashboardData?.transactions?.slice(0, 30).map((tx: any) => (
+              <React.Fragment key={tx.id}>
+                <tr className={`hover:bg-foreground/5 transition-colors cursor-pointer ${expandedTx === tx.id ? 'bg-foreground/5' : ''}`} onClick={() => setExpandedTx(expandedTx === tx.id ? null : tx.id)}>
+                  <td className="py-4 px-4 font-medium max-w-[200px] truncate">{tx.product?.title || 'Unknown'}</td>
+                  <td className="py-4 px-4 font-black text-emerald-600">₹{tx.amount_paid}</td>
+                  <td className="py-4 px-4">
+                    <span className={`px-2 py-0.5 text-[9px] uppercase font-bold rounded-full ${tx.payment_status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-700' : 'bg-amber-500/10 text-amber-700'}`}>
+                      {tx.payment_status}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-1.5">
+                      {tx.payout_status !== 'PENDING' ? (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase">
+                          <CheckCircle2 className="w-3 h-3" /> Received
                         </span>
-                      </td>
-                      <td className="py-4 px-4 text-foreground/60">{tx.payment_method || 'N/A'}</td>
-                      <td className="py-4 px-4">
-                        <button
-                          onClick={() => handleDeleteTx(tx.id)}
-                          disabled={actionLoading === tx.id}
-                          className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors disabled:opacity-40"
-                          title="Delete transaction"
-                        >
-                          {actionLoading === tx.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {(!dashboardData?.transactions || dashboardData.transactions.length === 0) && (
-                    <tr><td colSpan={6} className="py-8 justify-center text-center text-foreground/50">No transactions recorded yet.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 uppercase">
+                          <Clock className="w-3 h-3" /> Pending
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <span className={`px-2 py-0.5 text-[9px] uppercase font-bold rounded-full ${tx.payout_status === 'COMPLETED' ? 'bg-primary-500/10 text-primary-700' : 'bg-foreground/10 text-foreground/50'}`}>
+                      {tx.payout_status}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4 text-right">
+                    {expandedTx === tx.id ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
+                  </td>
+                </tr>
+
+                {expandedTx === tx.id && (
+                  <tr className="bg-foreground/[0.02] animate-in slide-in-from-top-2 duration-200">
+                    <td colSpan={6} className="p-0">
+                      <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {/* Buyer Info */}
+                        <div className="space-y-4">
+                          <h4 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-foreground/40">
+                             <Users className="w-3.5 h-3.5"/> Buyer Details
+                          </h4>
+                          <div className="space-y-1">
+                            <p className="font-bold">{tx.buyer?.name}</p>
+                            <p className="text-xs text-foreground/60">{tx.buyer?.email}</p>
+                            {tx.buyer?.phone_number && <p className="text-xs text-foreground/60 flex items-center gap-1"><Phone className="w-3 h-3"/> {tx.buyer.phone_number}</p>}
+                          </div>
+                        </div>
+
+                        {/* Seller & Payout Info */}
+                        <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-8 border-l border-black/5 pl-8">
+                          <div className="space-y-4">
+                             <h4 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-foreground/40">
+                               <CreditCard className="w-3.5 h-3.5"/> Seller Payout Info
+                             </h4>
+                             <div className="space-y-2 p-4 rounded-xl bg-primary-500/5 border border-primary-500/10">
+                                {tx.seller?.upi_id ? (
+                                  <div>
+                                    <p className="text-[10px] uppercase font-bold text-primary-600/60 mb-0.5">UPI ID</p>
+                                    <p className="font-mono text-sm font-bold bg-white px-2 py-1 rounded inline-block">{tx.seller.upi_id}</p>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2">
+                                    <div>
+                                      <p className="text-[10px] uppercase font-bold text-primary-600/60 mb-0.5">Account Number</p>
+                                      <p className="font-mono text-sm font-bold">{tx.seller?.bank_account_number || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] uppercase font-bold text-primary-600/60 mb-0.5">IFSC Code</p>
+                                      <p className="font-mono text-sm font-bold">{tx.seller?.bank_ifsc || 'N/A'}</p>
+                                    </div>
+                                  </div>
+                                )}
+                             </div>
+                             <div className="text-[10px] text-foreground/40 space-y-0.5">
+                                <p>Seller: <span className="font-bold text-foreground/70">{tx.seller?.name}</span></p>
+                                <p>Contact: <span className="font-bold text-foreground/70">{tx.seller?.phone_number || tx.seller?.email}</span></p>
+                             </div>
+                          </div>
+
+                          <div className="space-y-4 flex flex-col justify-between">
+                             <div>
+                               <h4 className="text-[11px] font-bold uppercase tracking-widest text-foreground/40 mb-2">Payout Amount</h4>
+                               <p className="text-2xl font-black text-primary-600">₹{tx.seller_payout}</p>
+                               <p className="text-[10px] text-foreground/40 italic">Charged to buyer: ₹{tx.amount_paid}</p>
+                             </div>
+
+                             <div className="flex flex-col gap-2 pt-4">
+                               {tx.payment_status === 'SUCCESS' && tx.payout_status !== 'COMPLETED' && (
+                                 <button
+                                   onClick={() => handlePayoutStatus(tx.id, 'COMPLETED')}
+                                   disabled={actionLoading === tx.id || tx.payout_status === 'PENDING'}
+                                   className="w-full py-2.5 rounded-lg bg-emerald-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-emerald-700 transition-colors disabled:opacity-40 disabled:grayscale transition-all flex items-center justify-center gap-2"
+                                 >
+                                   {actionLoading === tx.id ? <Loader2 className="w-4 h-4 animate-spin"/> : <><CheckCircle2 className="w-3.5 h-3.5"/> Complete Payout</>}
+                                 </button>
+                               )}
+                               
+                               {tx.payout_status === 'PENDING' && (
+                                 <p className="text-[10px] bg-amber-500/10 text-amber-700 p-2 rounded-lg font-medium">
+                                   Waiting for buyer to confirm receipt before payout can be processed.
+                                 </p>
+                               )}
+
+                               {tx.payout_status === 'COMPLETED' && (
+                                 <div className="flex items-center gap-2 py-2 px-3 bg-emerald-500/10 text-emerald-700 rounded-lg text-xs font-bold">
+                                   <CheckCircle2 className="w-4 h-4"/> Payout Finished
+                                 </div>
+                               )}
+
+                               <button
+                                 onClick={() => { if(confirm('Delete this transaction?')) handleDeleteTx(tx.id); }}
+                                 className="w-full py-2 text-[10px] font-bold uppercase tracking-widest text-red-500/50 hover:text-red-500 transition-colors mt-2"
+                               >
+                                 Delete Record
+                               </button>
+                             </div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            ))}
+            {(!dashboardData?.transactions || dashboardData.transactions.length === 0) && (
+              <tr><td colSpan={6} className="py-12 text-center text-foreground/50">No transactions recorded yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
         </div>
       )}
 

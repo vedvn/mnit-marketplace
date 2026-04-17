@@ -12,6 +12,8 @@ export default function SellPage() {
   const formRef = useRef<HTMLFormElement>(null);
   const supabase = createClient();
   const [categories, setCategories] = useState<any[]>([]);
+  const [feePercent, setFeePercent] = useState<number>(5);
+  const [price, setPrice] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -30,6 +32,11 @@ export default function SellPage() {
 
   useEffect(() => {
     getCategories().then(setCategories);
+    
+    // Fetch fee percent
+    supabase.from('admin_settings').select('platform_fee_percent').single().then(({data}) => {
+      if (data?.platform_fee_percent) setFeePercent(Number(data.platform_fee_percent));
+    });
     
     // Check if device is desktop
     const userAgent = window.navigator.userAgent;
@@ -178,7 +185,26 @@ export default function SellPage() {
 
           <div className="space-y-2">
             <label className="text-sm font-medium ml-1">Current Selling Price (₹)</label>
-            <input required type="number" name="price" className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none" />
+            <input 
+              required 
+              type="number" 
+              name="price" 
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none" 
+            />
+            {price && Number(price) > 0 && (
+              <div className="mt-2 p-3 rounded-xl bg-primary-500/5 border border-primary-500/10 flex flex-col gap-1">
+                <div className="flex justify-between text-[11px] uppercase tracking-wider font-bold text-foreground/40">
+                  <span>Platform Fee ({feePercent}%)</span>
+                  <span>- ₹{(Number(price) * feePercent / 100).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm font-bold text-primary-600">
+                  <span>You will receive</span>
+                  <span>₹{(Number(price) * (100 - feePercent) / 100).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
