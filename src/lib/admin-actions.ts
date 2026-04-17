@@ -25,6 +25,7 @@ export async function getAdminDashboardData() {
   if (!cleared) return { error: 'Unauthorized' };
 
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
 
   // 1. Get all sellers (any user who has listed a product)
   const { data: rawProducts } = await supabase
