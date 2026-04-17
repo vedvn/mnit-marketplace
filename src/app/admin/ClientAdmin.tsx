@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAdminDashboardData, adminBanUser, adminUnbanUser, adminDeleteTransaction } from '@/lib/admin-actions';
+import { getAdminDashboardData, adminBanUser, adminUnbanUser, adminDeleteTransaction, adminCreateCategory, adminDeleteCategory } from '@/lib/admin-actions';
 import { getPendingProducts, approveProduct, rejectProduct } from '@/lib/employee-actions';
-import { Loader2, ShieldAlert, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users, Trash2 } from 'lucide-react';
+import { Loader2, ShieldAlert, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users, Trash2, Tag, PlusCircle } from 'lucide-react';
 
 export default function ClientAdmin() {
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'sellers' | 'verification' | 'broadcast'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'sellers' | 'verification' | 'broadcast' | 'categories'>('analytics');
   
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
@@ -22,6 +22,10 @@ export default function ClientAdmin() {
     updatedDate: '',
     summaryOfChanges: ''
   });
+
+  // Category state
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [categoryActionLoading, setCategoryActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -77,6 +81,24 @@ export default function ClientAdmin() {
     setActionLoading(null);
   }
 
+  async function handleCreateCategory(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    setCategoryActionLoading('create');
+    await adminCreateCategory(newCategoryName);
+    setNewCategoryName('');
+    await fetchData();
+    setCategoryActionLoading(null);
+  }
+
+  async function handleDeleteCategory(id: string) {
+    if (!confirm('Delete this category? Products using it will need to be reassigned.')) return;
+    setCategoryActionLoading(id);
+    await adminDeleteCategory(id);
+    await fetchData();
+    setCategoryActionLoading(null);
+  }
+
   // Broadcast Action
   async function handleBroadcast(e: React.FormEvent) {
     e.preventDefault();
@@ -125,7 +147,7 @@ export default function ClientAdmin() {
 
         {/* Tab Nav */}
         <div className="flex flex-wrap gap-2 p-1 bg-foreground/5 rounded-xl self-start md:self-auto">
-          {['analytics', 'sellers', 'verification', 'broadcast'].map(tab => (
+          {['analytics', 'sellers', 'categories', 'verification', 'broadcast'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as any)}
@@ -297,6 +319,61 @@ export default function ClientAdmin() {
             ))}
           </div>
         )
+      )}
+
+      {/* CATEGORIES TAB */}
+      {activeTab === 'categories' && (
+        <div className="max-w-2xl space-y-6">
+          <form onSubmit={handleCreateCategory} className="glass-card p-6 rounded-2xl border border-black/5 flex gap-3 items-end">
+            <div className="flex-1 space-y-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-foreground/50">New Category Name</label>
+              <input
+                required
+                value={newCategoryName}
+                onChange={e => setNewCategoryName(e.target.value)}
+                placeholder="e.g. Lab Equipment"
+                className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 outline-none focus:border-primary-500 text-sm"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={categoryActionLoading === 'create'}
+              className="flex items-center gap-2 px-5 py-3 rounded-xl bg-primary-600 text-white font-bold text-sm hover:bg-primary-700 transition-colors disabled:opacity-50"
+            >
+              {categoryActionLoading === 'create' ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+              Add
+            </button>
+          </form>
+
+          <div className="glass-card rounded-2xl border border-black/5 overflow-hidden">
+            <div className="px-6 py-4 border-b border-black/5 flex items-center gap-2">
+              <Tag className="w-4 h-4 text-foreground/40" />
+              <h3 className="font-bold text-sm uppercase tracking-wider">Current Categories</h3>
+              <span className="ml-auto text-xs text-foreground/40 font-bold">{dashboardData?.categories?.length ?? 0} total</span>
+            </div>
+            <ul className="divide-y divide-black/5">
+              {dashboardData?.categories?.map((cat: any) => (
+                <li key={cat.id} className="flex items-center justify-between px-6 py-4 hover:bg-foreground/5 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-primary-500" />
+                    <span className="font-semibold text-sm">{cat.name}</span>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteCategory(cat.id)}
+                    disabled={categoryActionLoading === cat.id}
+                    className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors disabled:opacity-40"
+                    title="Delete category"
+                  >
+                    {categoryActionLoading === cat.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  </button>
+                </li>
+              ))}
+              {(!dashboardData?.categories || dashboardData.categories.length === 0) && (
+                <li className="px-6 py-8 text-center text-foreground/40 text-sm">No categories yet.</li>
+              )}
+            </ul>
+          </div>
+        </div>
       )}
 
       {/* BROADCAST TAB */}

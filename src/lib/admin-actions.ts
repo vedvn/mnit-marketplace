@@ -56,16 +56,44 @@ export async function getAdminDashboardData() {
   // 4. Current fee setting
   const { data: settings } = await adminSupabase.from('admin_settings').select('platform_fee_percent').single();
 
+  // 5. Categories
+  const { data: categories } = await adminSupabase.from('categories').select('*').order('name');
+
   return {
     success: true,
     sellers,
     transactions: transactions || [],
     feePercent: settings?.platform_fee_percent ?? 5,
+    categories: categories || [],
     totals: {
       amountCollected: totalAmountCollected,
       platformFees: totalPlatformFees
     }
   };
+}
+
+export async function adminCreateCategory(name: string) {
+  const cleared = await verifyAdminClearance();
+  if (!cleared) return { error: 'Unauthorized' };
+
+  const adminSupabase = createAdminClient();
+  const { error } = await adminSupabase.from('categories').insert({ name: name.trim() });
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  return { success: true };
+}
+
+export async function adminDeleteCategory(id: string) {
+  const cleared = await verifyAdminClearance();
+  if (!cleared) return { error: 'Unauthorized' };
+
+  const adminSupabase = createAdminClient();
+  const { error } = await adminSupabase.from('categories').delete().eq('id', id);
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  return { success: true };
 }
 
 export async function adminBanUser(userId: string, durationDays: number | null, reason: string = 'Violated marketplace rules') {
