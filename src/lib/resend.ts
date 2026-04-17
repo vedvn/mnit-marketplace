@@ -3,7 +3,7 @@ import { ReactElement } from 'react';
 
 // Create a Resend instance.
 // Ensure RESEND_API_KEY is available during build/runtime.
-export const resend = new Resend(process.env.RESEND_API_KEY);
+export const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy_key_for_build');
 
 interface SendEmailParams {
   to: string | string[];
