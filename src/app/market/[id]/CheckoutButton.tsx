@@ -10,20 +10,16 @@ import Link from 'next/link';
 interface Props {
   productId: string;
   price: number;
-  feePercent: number;
   isLoggedIn: boolean;
   productTitle: string;
 }
 
-export default function CheckoutButton({ productId, price, feePercent, isLoggedIn, productTitle }: Props) {
+export default function CheckoutButton({ productId, price, isLoggedIn, productTitle }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const pendingOrderId = useRef<string | null>(null);
   const router = useRouter();
-
-  const platformFee = parseFloat(((price * feePercent) / 100).toFixed(2));
-  const total = parseFloat((price + platformFee).toFixed(2));
 
   if (!isLoggedIn) {
     return (
@@ -150,17 +146,9 @@ export default function CheckoutButton({ productId, price, feePercent, isLoggedI
               <p className="text-foreground/60 text-sm line-clamp-1">{productTitle}</p>
             </div>
             <div className="p-6 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-foreground/60">Item price</span>
-                <span className="font-bold">₹{price}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-foreground/60">Platform fee ({feePercent}%)</span>
-                <span className="font-bold text-foreground/60">₹{platformFee}</span>
-              </div>
-              <div className="flex justify-between font-black text-lg border-t border-black/5 pt-3">
+              <div className="flex justify-between font-black text-lg">
                 <span>Total</span>
-                <span className="text-primary-600">₹{total}</span>
+                <span className="text-primary-600">₹{price}</span>
               </div>
               <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-emerald-600 font-bold pt-1">
                 <ShieldCheck className="w-3.5 h-3.5" /> Secured by Razorpay
@@ -179,7 +167,7 @@ export default function CheckoutButton({ productId, price, feePercent, isLoggedI
                 className="flex-2 py-4 bg-primary-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-primary-900 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                  <><IndianRupee className="w-3.5 h-3.5" /> Pay ₹{total}</>
+                  <><IndianRupee className="w-3.5 h-3.5" /> Pay ₹{price}</>
                 )}
               </button>
             </div>
@@ -200,7 +188,7 @@ export default function CheckoutButton({ productId, price, feePercent, isLoggedI
           className="w-full h-16 flex items-center justify-center gap-3 bg-primary-600 text-white font-bold text-sm uppercase tracking-widest hover:bg-primary-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-            <>Buy Now — ₹{total} <span className="opacity-70 ml-1 font-mono text-[10px] tracking-normal">(inc. {feePercent}% fee)</span></>
+            <>Buy Now — ₹{price}</>
           )}
         </button>
       </div>

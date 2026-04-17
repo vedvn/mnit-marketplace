@@ -88,9 +88,12 @@ export async function createOrder(productId: string) {
   // Fetch admin settings for platform fee percentage
   const { data: adminSettings } = await supabase.from('admin_settings').select('*').single();
   const platformFeePercent = adminSettings?.platform_fee_percent ?? 5; // default 5%
-  const platformFee = parseFloat(((product.price * platformFeePercent) / 100).toFixed(2));
   
-  const amountPaidInPaise = Math.round((product.price + platformFee) * 100);
+  // Fee is calculated but NOT added to the buyer's cost. It is deducted from the seller's payout.
+  const platformFee = parseFloat(((product.price * platformFeePercent) / 100).toFixed(2));
+  const sellerPayout = parseFloat((product.price - platformFee).toFixed(2));
+  
+  const amountPaidInPaise = Math.round(product.price * 100);
 
   try {
     const razorpay = getRazorpay();
@@ -106,9 +109,9 @@ export async function createOrder(productId: string) {
       product_id: product.id,
       buyer_id: user.id,
       seller_id: product.seller_id,
-      amount_paid: product.price + platformFee,
+      amount_paid: product.price,
       platform_fee: platformFee,
-      seller_payout: product.price,
+      seller_payout: sellerPayout,
       payment_status: 'PENDING',
       payout_status: 'PENDING',
       razorpay_order_id: order.id

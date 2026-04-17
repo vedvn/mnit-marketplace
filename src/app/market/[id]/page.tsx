@@ -126,7 +126,6 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 <CheckoutButton
                   productId={product.id}
                   price={product.price}
-                  feePercent={feePercent}
                   isLoggedIn={!!user}
                   productTitle={product.title}
                 />
