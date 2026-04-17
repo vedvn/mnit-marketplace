@@ -97,11 +97,11 @@ USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
 -- 6. Create Admin Settings Table
 CREATE TABLE public.admin_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  platform_fee_rupees DECIMAL(10, 2) NOT NULL DEFAULT 10.00
+  platform_fee_percent DECIMAL(5, 2) NOT NULL DEFAULT 5.00 -- percentage e.g. 5 = 5%
 );
 ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can read admin settings" ON public.admin_settings FOR SELECT USING (true);
-INSERT INTO public.admin_settings (platform_fee_rupees) VALUES (10.00);
+INSERT INTO public.admin_settings (platform_fee_percent) VALUES (5.00);
 
 -- Create a Trigger to auto-create public.users when auth.users signs up
 CREATE OR REPLACE FUNCTION public.handle_new_user()

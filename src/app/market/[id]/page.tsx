@@ -4,6 +4,7 @@ import { Tag, MapPin, Clock, IndianRupee, ShieldCheck } from 'lucide-react';
 import CheckoutButton from './CheckoutButton';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -12,6 +13,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
+  const adminSupabase = createAdminClient();
+  const { data: adminSettings } = await adminSupabase.from('admin_settings').select('platform_fee_percent').single();
+  const feePercent: number = adminSettings?.platform_fee_percent ?? 5;
 
   const isOwner = user?.id === product.seller_id;
 
@@ -121,6 +126,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 <CheckoutButton
                   productId={product.id}
                   price={product.price}
+                  feePercent={feePercent}
                   isLoggedIn={!!user}
                   productTitle={product.title}
                 />

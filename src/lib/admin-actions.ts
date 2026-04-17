@@ -53,10 +53,14 @@ export async function getAdminDashboardData() {
   const totalAmountCollected = transactions?.reduce((sum, tx) => sum + Number(tx.amount_paid), 0) || 0;
   const totalPlatformFees = transactions?.reduce((sum, tx) => sum + Number(tx.platform_fee), 0) || 0;
 
+  // 4. Current fee setting
+  const { data: settings } = await adminSupabase.from('admin_settings').select('platform_fee_percent').single();
+
   return {
     success: true,
     sellers,
     transactions: transactions || [],
+    feePercent: settings?.platform_fee_percent ?? 5,
     totals: {
       amountCollected: totalAmountCollected,
       platformFees: totalPlatformFees

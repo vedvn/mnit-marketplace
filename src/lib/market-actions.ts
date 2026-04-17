@@ -85,9 +85,10 @@ export async function createOrder(productId: string) {
   if (product.status !== 'AVAILABLE') return { error: 'Product is no longer available' };
   if (product.seller_id === user.id) return { error: 'You cannot buy your own product' };
 
-  // Fetch admin settings for platform fee
+  // Fetch admin settings for platform fee percentage
   const { data: adminSettings } = await supabase.from('admin_settings').select('*').single();
-  const platformFee = adminSettings?.platform_fee_rupees || 10.00;
+  const platformFeePercent = adminSettings?.platform_fee_percent ?? 5; // default 5%
+  const platformFee = parseFloat(((product.price * platformFeePercent) / 100).toFixed(2));
   
   const amountPaidInPaise = Math.round((product.price + platformFee) * 100);
 

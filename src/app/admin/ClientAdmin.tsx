@@ -155,6 +155,7 @@ export default function ClientAdmin() {
               <TrendingUp className="w-8 h-8 text-primary-500 mb-4" />
               <p className="text-xs font-bold uppercase tracking-widest text-foreground/50 mb-1">Platform Fees Collected</p>
               <p className="text-4xl font-black">₹{dashboardData?.totals.platformFees.toLocaleString()}</p>
+              <p className="text-xs text-foreground/40 mt-2">@ {dashboardData?.feePercent ?? 5}% per transaction</p>
             </div>
 
             <div className="glass-card p-6 rounded-2xl bento-border flex flex-col items-center justify-center text-center py-10">
