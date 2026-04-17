@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { getAdminDashboardData, adminBanUser, adminUnbanUser, adminDeleteTransaction, adminCreateCategory, adminDeleteCategory, adminUpdatePayoutStatus } from '@/lib/admin-actions';
 import { getPendingProducts, approveProduct, rejectProduct } from '@/lib/employee-actions';
 import { Loader2, ShieldAlert, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users, Trash2, Tag, PlusCircle, ChevronDown, ChevronUp, CheckCircle2, Clock, CreditCard, ExternalLink, Phone } from 'lucide-react';
@@ -211,7 +211,7 @@ export default function ClientAdmin() {
           </thead>
           <tbody className="divide-y divide-black/5">
             {dashboardData?.transactions?.slice(0, 30).map((tx: any) => (
-              <React.Fragment key={tx.id}>
+              <Fragment key={tx.id}>
                 <tr className={`hover:bg-foreground/5 transition-colors cursor-pointer ${expandedTx === tx.id ? 'bg-foreground/5' : ''}`} onClick={() => setExpandedTx(expandedTx === tx.id ? null : tx.id)}>
                   <td className="py-4 px-4 font-medium max-w-[200px] truncate">{tx.product?.title || 'Unknown'}</td>
                   <td className="py-4 px-4 font-black text-emerald-600">₹{tx.amount_paid}</td>
@@ -333,7 +333,7 @@ export default function ClientAdmin() {
                     </td>
                   </tr>
                 )}
-              </React.Fragment>
+              </Fragment>
             ))}
             {(!dashboardData?.transactions || dashboardData.transactions.length === 0) && (
               <tr><td colSpan={6} className="py-12 text-center text-foreground/50">No transactions recorded yet.</td></tr>
