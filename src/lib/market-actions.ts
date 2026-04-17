@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getRazorpay } from '@/lib/razorpay';
 import { revalidatePath } from 'next/cache';
 
@@ -98,7 +99,9 @@ export async function createOrder(productId: string) {
       receipt: `rect_${Date.now()}`,
     });
 
-    const { error: txError } = await supabase.from('transactions').insert({
+    // Use admin client to bypass RLS — transaction insert is server-side and trusted
+    const adminSupabase = createAdminClient();
+    const { error: txError } = await adminSupabase.from('transactions').insert({
       product_id: product.id,
       buyer_id: user.id,
       seller_id: product.seller_id,
