@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
         sellerName: (tx.seller as any)?.name,
         buyerName: buyer?.name,
         buyerPhone: buyer?.phone_number,
+        buyerEmail: buyer?.email,
         productTitle: (tx.product as any)?.title,
         amount: tx.amount_paid,
         platformFee: tx.platform_fee,

@@ -12,7 +12,11 @@ export default async function ProfilePage() {
   }
 
   const { data: userProfile } = await supabase.from('users').select('*').eq('id', user.id).single();
-  const { data: products } = await supabase.from('products').select('*').eq('seller_id', user.id).order('created_at', { ascending: false });
+  const { data: products } = await supabase
+    .from('products')
+    .select('*, sale_tx:transactions(id, amount_paid, buyer:users!buyer_id(name, email, phone_number))')
+    .eq('seller_id', user.id)
+    .order('created_at', { ascending: false });
   const { data: purchases } = await supabase.from('transactions').select('*, product:products(*)').eq('buyer_id', user.id).order('created_at', { ascending: false });
 
   return (
@@ -58,7 +62,21 @@ export default async function ProfilePage() {
                 </div>
                 <div className="p-4">
                   <h3 className="font-semibold truncate mb-1">{p.title}</h3>
-                  <p className="text-primary-600 font-bold mb-4">₹{p.price}</p>
+                  <p className="text-primary-600 font-bold mb-3">₹{p.price}</p>
+
+                  {/* Buyer details for SOLD products */}
+                  {p.status === 'SOLD' && p.sale_tx?.[0]?.buyer && (() => {
+                    const buyer = p.sale_tx[0].buyer as any;
+                    return (
+                      <div className="mb-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-xs space-y-1.5">
+                        <p className="font-bold text-emerald-600 uppercase tracking-wider text-[10px] mb-2">Buyer Info</p>
+                        <p className="font-semibold text-foreground truncate">{buyer.name}</p>
+                        <p className="text-foreground/60 truncate">{buyer.email}</p>
+                        {buyer.phone_number && <p className="text-foreground/60">📞 {buyer.phone_number}</p>}
+                      </div>
+                    );
+                  })()}
+
                   <div className="flex gap-2">
                     <Link href={`/market/${p.id}`} className="flex-1 text-center py-2 rounded-lg bg-foreground/5 hover:bg-foreground/10 text-xs font-semibold transition-colors">
                       View
