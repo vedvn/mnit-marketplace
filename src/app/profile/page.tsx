@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Tag, Plus, ShoppingBag, ShieldCheck, CheckCircle2 } from 'lucide-react';
@@ -17,7 +18,14 @@ export default async function ProfilePage() {
     .select('*, sale_tx:transactions(id, amount_paid, buyer:users!buyer_id(name, email, phone_number))')
     .eq('seller_id', user.id)
     .order('created_at', { ascending: false });
-  const { data: purchases } = await supabase.from('transactions').select('*, product:products(*)').eq('buyer_id', user.id).order('created_at', { ascending: false });
+
+  // Use admin client for purchases so SOLD products (hidden by RLS) are still visible to the buyer
+  const adminSupabase = createAdminClient();
+  const { data: purchases } = await adminSupabase
+    .from('transactions')
+    .select('*, product:products(id, title, images, price)')
+    .eq('buyer_id', user.id)
+    .order('created_at', { ascending: false });
 
   return (
     <div className="min-h-screen pt-24 pb-12 px-6 max-w-5xl mx-auto">
