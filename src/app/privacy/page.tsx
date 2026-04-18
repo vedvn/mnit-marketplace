@@ -183,7 +183,7 @@ const sections = [
       },
       {
         heading: "Contact Details",
-        body: "Email: admin@mnit.ac.in · Subject: Privacy Query\nAddress: MNIT Jaipur, JLN Marg, Jaipur, Rajasthan 302017\nWe aim to respond to all privacy-related queries within 5 business days.",
+        body: "Email: mnitmarketplace@gmail.com · Subject: Privacy Query\nAddress: MNIT Jaipur, JLN Marg, Jaipur, Rajasthan 302017\nWe aim to respond to all privacy-related queries within 5 business days.",
       },
     ],
   },

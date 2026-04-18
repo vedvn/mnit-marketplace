@@ -30,8 +30,8 @@ const FOOTER_LINKS = {
     { label: "My Profile", href: "/profile" },
   ],
   Support: [
-    { label: "Contact Admin", href: "mailto:ved@mnit.ac.in" },
-    { label: "Report a Scam", href: "mailto:ved@mnit.ac.in?subject=Scam%20Report" },
+    { label: "Contact Admin", href: "mailto:mnitmarketplace@gmail.com" },
+    { label: "Report a Scam", href: "mailto:mnitmarketplace@gmail.com?subject=Scam%20Report" },
     { label: "Terms & Rules", href: "/terms" },
     { label: "Privacy Policy", href: "/privacy" },
     { label: "Employee Desk", href: "/employee" },
@@ -128,12 +128,12 @@ export default function Footer() {
             </h3>
             <div className="space-y-4">
               <a
-                href="mailto:admin@mnit.ac.in"
+                href="mailto:mnitmarketplace@gmail.com"
                 className="flex items-start gap-3 group"
               >
                 <Mail className="w-4 h-4 mt-0.5 text-zinc-600 group-hover:text-primary-500 transition-colors shrink-0" />
                 <span className="text-sm text-zinc-400 group-hover:text-white transition-colors break-all">
-                  admin@mnit.ac.in
+                  mnitmarketplace@gmail.com
                 </span>
               </a>
               <div className="flex items-start gap-3">
