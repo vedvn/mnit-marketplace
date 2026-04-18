@@ -182,10 +182,17 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 VALUES ('product-images', 'product-images', true, 2097152, ARRAY['image/jpeg', 'image/png', 'image/webp'])
 ON CONFLICT (id) DO NOTHING;
 
+-- Policies for public images
 DROP POLICY IF EXISTS "Product images are publicly accessible." ON storage.objects;
 CREATE POLICY "Product images are publicly accessible." ON storage.objects FOR SELECT USING (bucket_id = 'product-images');
-DROP POLICY IF EXISTS "Anyone can upload product images." ON storage.objects;
-CREATE POLICY "Anyone can upload product images." ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'product-images');
+
+DROP POLICY IF EXISTS "Authenticated users can upload product images." ON storage.objects;
+CREATE POLICY "Authenticated users can upload product images." ON storage.objects 
+FOR INSERT TO authenticated WITH CHECK (bucket_id = 'product-images');
+
+DROP POLICY IF EXISTS "Users can delete their own product images." ON storage.objects;
+CREATE POLICY "Users can delete their own product images." ON storage.objects 
+FOR DELETE TO authenticated USING (bucket_id = 'product-images');
 
 -- 6b. Private verification photos bucket (Privacy Section 03)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) 
@@ -194,7 +201,7 @@ ON CONFLICT (id) DO NOTHING;
 
 DROP POLICY IF EXISTS "Verification photos are restricted" ON storage.objects;
 CREATE POLICY "Verification photos are restricted" ON storage.objects 
-FOR SELECT USING (
+FOR SELECT TO authenticated USING (
     bucket_id = 'verification-photos' AND (
         auth.uid()::text = (storage.foldername(name))[1] OR
         EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND (is_admin = true OR is_employee = true))
@@ -203,7 +210,7 @@ FOR SELECT USING (
 
 DROP POLICY IF EXISTS "Users can upload own verification photos" ON storage.objects;
 CREATE POLICY "Users can upload own verification photos" ON storage.objects 
-FOR INSERT WITH CHECK (
+FOR INSERT TO authenticated WITH CHECK (
     bucket_id = 'verification-photos' AND 
     auth.uid()::text = (storage.foldername(name))[1]
 );

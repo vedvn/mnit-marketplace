@@ -54,6 +54,7 @@ export async function middleware(request: NextRequest) {
     path === '/maintenance' || 
     path === '/holiday' ||
     path === '/login' ||
+    path === '/sell/mobile-capture' || 
     path.startsWith('/auth') || 
     path.startsWith('/_next') || 
     path === '/favicon.ico';

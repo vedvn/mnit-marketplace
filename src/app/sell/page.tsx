@@ -6,6 +6,7 @@ import { getCategories, createProduct } from '@/lib/market-actions';
 import { Loader2, ImagePlus, X, AlertCircle, Camera, QrCode, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import QRCode from 'react-qr-code';
+import { compressImage } from '@/lib/image-utils';
 
 
 import { CAMPUS_SAFE_ZONES, isWithinSafetyWindow } from '@/lib/constants/locations';
@@ -155,9 +156,12 @@ export default function SellPage() {
       const imageUrls: string[] = [];
       // 1. Upload public images to public bucket
       for (const file of files) {
-        const fileExt = file.name.split('.').pop();
+        // Automatically compress if needed
+        const optimizedFile = await compressImage(file);
+        
+        const fileExt = optimizedFile.name.split('.').pop();
         const fileName = `public_${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, file);
+        const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, optimizedFile);
         if (uploadError) throw new Error(`Public Image upload failed`);
         const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
         imageUrls.push(data.publicUrl);
@@ -168,10 +172,11 @@ export default function SellPage() {
       // If from desktop flow (livePreview is already a URL from the API), we'll keep that.
       let finalLivePhotoPath = livePreview;
       if (livePhoto) {
-        const liveExt = livePhoto.name.split('.').pop();
+        const optimizedLive = await compressImage(livePhoto);
+        const liveExt = optimizedLive.name.split('.').pop();
         // Route to the private bucket and include userId in path for RLS protection
         const privateFileName = `${user.id}/${Math.random().toString(36).substring(2)}_${Date.now()}.${liveExt}`;
-        const { error: liveUploadErr } = await supabase.storage.from('verification-photos').upload(privateFileName, livePhoto);
+        const { error: liveUploadErr } = await supabase.storage.from('verification-photos').upload(privateFileName, optimizedLive);
         if (liveUploadErr) throw new Error(`Private Verification upload failed`);
         finalLivePhotoPath = privateFileName; // We store the PATH for private files, not public URL
       } else if (livePreview && livePreview.includes('verification-photos')) {
