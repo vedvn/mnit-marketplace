@@ -158,7 +158,7 @@ export async function getDisputeData() {
     .from('disputes')
     .select(`
       *,
-      transaction:transactions(*),
+      transaction:transactions(*, buyer:users!buyer_id(name, email, phone_number), seller:users!seller_id(name, email, phone_number)),
       product:products(title, price),
       raised_by_user:users!raised_by(name, email)
     `)

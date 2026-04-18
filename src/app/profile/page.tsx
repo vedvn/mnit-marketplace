@@ -13,6 +13,10 @@ import { confirmReceipt } from '@/lib/profile-actions';
 import DisputeForm from '@/components/DisputeForm';
 import EditProfileForm from '@/components/EditProfileForm';
 import DeleteAccountButton from '@/components/DeleteAccountButton';
+import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
+import { MapPin } from 'lucide-react';
+import { decrypt } from '@/lib/utils/encryption';
+import DisputeViewModal from '@/components/DisputeViewModal';
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -37,7 +41,7 @@ export default async function ProfilePage() {
   const adminSupabase = createAdminClient();
   const { data: purchases } = await adminSupabase
     .from('transactions')
-    .select('*, product:products(id, title, images, price)')
+    .select('*, product:products(id, title, images, price, pickup_address)')
     .eq('buyer_id', user.id)
     .order('created_at', { ascending: false });
 
@@ -57,11 +61,24 @@ export default async function ProfilePage() {
   ];
 
   // Fetch user's disputes
-  const { data: userDisputes } = await adminSupabase
+  const { data: rawDisputes } = await adminSupabase
     .from('disputes')
-    .select('*, product:products(title, images)')
+    .select('*, product:products(title, images, price), transaction:transactions(buyer_id, seller_id)')
     .eq('raised_by', user.id)
     .order('created_at', { ascending: false });
+
+  const userDisputes = (rawDisputes || []).map(d => {
+    const tx = d.transaction as any;
+    let role: 'Buyer' | 'Seller' | 'User' = 'User';
+    if (tx?.buyer_id === user.id) role = 'Buyer';
+    else if (tx?.seller_id === user.id) role = 'Seller';
+
+    return {
+      ...d,
+      reason: decrypt(d.reason),
+      role
+    };
+  });
 
   return (
     <div className="min-h-screen pt-24 pb-12 px-6 max-w-5xl mx-auto">
@@ -257,7 +274,13 @@ export default async function ProfilePage() {
                   <div className="flex-1 min-w-0">
                     <h4 className="font-semibold truncate">{tx.product?.title || 'Unknown Item'}</h4>
                     <p className="text-xs text-foreground/50">Purchased on {new Date(tx.created_at).toLocaleDateString()}</p>
-                    <div className="font-bold text-accent mt-1">₹{tx.amount_paid}</div>
+                    <div className="flex flex-wrap items-center gap-3 mt-1 mb-1">
+                      <div className="font-bold text-accent text-sm">₹{tx.amount_paid}</div>
+                      <div className="flex items-center gap-1 text-[10px] text-foreground/40 font-bold uppercase tracking-widest bg-foreground/5 px-2 py-0.5 rounded border border-black/5">
+                        <MapPin className="w-3 h-3 text-primary-600" />
+                        {CAMPUS_SAFE_ZONES.find(z => z.id === tx.product?.pickup_address?.toLowerCase())?.name || tx.product?.pickup_address?.replace('_', ' ')}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -337,6 +360,8 @@ export default async function ProfilePage() {
                     <p className="text-sm font-bold truncate">{dispute.product?.title || 'General Account Report'}</p>
                   </div>
                 </div>
+
+                <DisputeViewModal dispute={dispute} role={dispute.role as any} />
 
                 {dispute.resolution && (
                   <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 animate-in slide-in-from-top-2 duration-500">

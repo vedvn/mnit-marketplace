@@ -22,7 +22,7 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
     .from('transactions')
     .select(`
       *,
-      product:products(title, images, pickup_address, condition),
+      product:products(title, images, pickup_address, condition, category),
       seller:users!seller_id(name, phone_number, email),
       buyer:users!buyer_id(name, phone_number)
     `)
@@ -66,8 +66,16 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="font-bold text-xl display-title uppercase mb-1 line-clamp-1">{product?.title}</h2>
-            <div className="flex items-center gap-1 text-xs text-foreground/50 font-bold uppercase tracking-widest">
-              <MapPin className="w-3 h-3" /> {CAMPUS_SAFE_ZONES.find(z => z.id === product?.pickup_address?.toLowerCase())?.name || product?.pickup_address?.replace('_', ' ')}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5 text-[10px] text-foreground/50 font-bold uppercase tracking-widest">
+                <MapPin className="w-3 h-3 text-primary-600" /> {CAMPUS_SAFE_ZONES.find(z => z.id === product?.pickup_address?.toLowerCase())?.name || product?.pickup_address?.replace('_', ' ')}
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-foreground/50 font-bold uppercase tracking-widest">
+                <PackageCheck className="w-3 h-3 text-primary-600" /> {product?.condition?.replace('_', ' ')}
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-foreground/50 font-bold uppercase tracking-widest">
+                <ShieldCheck className="w-3 h-3 text-primary-600" /> {product?.category}
+              </div>
             </div>
           </div>
         </div>
@@ -75,12 +83,8 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
         {/* Price Breakdown */}
         <div className="p-6 space-y-3 bento-border-b">
           <div className="flex justify-between text-sm">
-            <span className="text-foreground/60">Item price</span>
-            <span className="font-bold">₹{Number(tx.seller_payout).toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-foreground/60">Platform fee</span>
-            <span className="font-bold text-foreground/50">₹{Number(tx.platform_fee).toLocaleString()}</span>
+            <span className="text-foreground/60">Purchase Price</span>
+            <span className="font-bold">₹{Number(tx.amount_paid).toLocaleString()}</span>
           </div>
           {tx.payment_method && (
             <div className="flex justify-between text-sm">

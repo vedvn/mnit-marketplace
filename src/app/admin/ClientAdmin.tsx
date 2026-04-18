@@ -1037,7 +1037,10 @@ export default function ClientAdmin() {
                           {d.status}
                         </span>
                         <h3 className="font-bold text-lg">{d.product?.title}</h3>
-                        <p className="text-xs text-foreground/50">Dispute raised by {d.raised_by_user?.name} ({d.raised_by_user?.email})</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-primary-600 bg-primary-500/10 px-2 py-0.5 rounded-sm">Initiator</span>
+                          <p className="text-xs text-foreground/70 font-bold">{d.raised_by_user?.name} ({d.raised_by_user?.email})</p>
+                        </div>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] uppercase font-bold text-foreground/30">Amount</p>
@@ -1045,12 +1048,31 @@ export default function ClientAdmin() {
                       </div>
                     </div>
 
-                    <div className="p-4 rounded-xl bg-foreground/5 border border-black/5">
-                      <p className="text-[10px] uppercase font-bold text-foreground/40 mb-2 flex items-center gap-1">
-                        <ShieldCheck className="w-3 h-3" /> Decrypted Reason
-                      </p>
-                      <p className="text-sm leading-relaxed text-foreground/80 italic">"{d.reason}"</p>
-                    </div>
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-xl bg-foreground/5 border border-black/5">
+                          <p className="text-[10px] uppercase font-bold text-foreground/40 mb-2 flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" /> Decrypted Reason
+                          </p>
+                          <p className="text-sm leading-relaxed text-foreground/80 italic">"{d.reason}"</p>
+                        </div>
+
+                        {d.transaction && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
+                              <p className="text-[10px] uppercase font-black tracking-widest text-blue-600 mb-2">Buyer (Contact)</p>
+                              <p className="text-sm font-bold">{d.transaction.buyer?.name}</p>
+                              <p className="text-xs text-foreground/60">{d.transaction.buyer?.email}</p>
+                              <p className="text-xs text-foreground/60 font-mono mt-1">{d.transaction.buyer?.phone_number || 'No phone'}</p>
+                            </div>
+                            <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                              <p className="text-[10px] uppercase font-black tracking-widest text-emerald-600 mb-2">Seller (Contact)</p>
+                              <p className="text-sm font-bold">{d.transaction.seller?.name}</p>
+                              <p className="text-xs text-foreground/60">{d.transaction.seller?.email}</p>
+                              <p className="text-xs text-foreground/60 font-mono mt-1">{d.transaction.seller?.phone_number || 'No phone'}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
 
                     {d.resolution && (
                       <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-emerald-800 text-sm italic">
