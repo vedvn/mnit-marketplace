@@ -179,7 +179,7 @@ CREATE TRIGGER on_auth_user_created
 
 -- 6a. Public images bucket
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) 
-VALUES ('product-images', 'product-images', true, 2097152, ARRAY['image/jpeg', 'image/png', 'image/webp'])
+VALUES ('product-images', 'product-images', true, 2097152, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/octet-stream'])
 ON CONFLICT (id) DO NOTHING;
 
 -- Policies for public images
@@ -196,7 +196,7 @@ FOR DELETE TO authenticated USING (bucket_id = 'product-images');
 
 -- 6b. Private verification photos bucket (Privacy Section 03)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) 
-VALUES ('verification-photos', 'verification-photos', false, 2097152, ARRAY['image/jpeg', 'image/png', 'image/webp'])
+VALUES ('verification-photos', 'verification-photos', false, 2097152, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/octet-stream'])
 ON CONFLICT (id) DO NOTHING;
 
 DROP POLICY IF EXISTS "Verification photos are restricted" ON storage.objects;

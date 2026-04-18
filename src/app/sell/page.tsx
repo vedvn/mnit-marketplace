@@ -161,8 +161,14 @@ export default function SellPage() {
         
         const fileExt = optimizedFile.name.split('.').pop();
         const fileName = `public_${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, optimizedFile);
-        if (uploadError) throw new Error(`Public Image upload failed`);
+        const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, optimizedFile, {
+          contentType: 'image/jpeg',
+          upsert: false
+        });
+        if (uploadError) {
+          console.error("Supabase Storage Error (Public):", uploadError);
+          throw new Error(`Public Image upload failed: ${uploadError.message}`);
+        }
         const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
         imageUrls.push(data.publicUrl);
       }
@@ -176,8 +182,14 @@ export default function SellPage() {
         const liveExt = optimizedLive.name.split('.').pop();
         // Route to the private bucket and include userId in path for RLS protection
         const privateFileName = `${user.id}/${Math.random().toString(36).substring(2)}_${Date.now()}.${liveExt}`;
-        const { error: liveUploadErr } = await supabase.storage.from('verification-photos').upload(privateFileName, optimizedLive);
-        if (liveUploadErr) throw new Error(`Private Verification upload failed`);
+        const { error: liveUploadErr } = await supabase.storage.from('verification-photos').upload(privateFileName, optimizedLive, {
+          contentType: 'image/jpeg',
+          upsert: false
+        });
+        if (liveUploadErr) {
+          console.error("Supabase Storage Error (Private):", liveUploadErr);
+          throw new Error(`Private Verification upload failed: ${liveUploadErr.message}`);
+        }
         finalLivePhotoPath = privateFileName; // We store the PATH for private files, not public URL
       } else if (livePreview && livePreview.includes('verification-photos')) {
          // If it's already in the bucket (e.g. from desktop-to-mobile proxy), extract the path

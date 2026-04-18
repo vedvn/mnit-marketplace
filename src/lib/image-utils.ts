@@ -53,8 +53,11 @@ export async function compressImage(file: File, maxSizeMB: number = 2): Promise<
             if (blob.size > targetSize && q > 0.1) {
               attemptCompression(q - 0.1);
             } else {
-              // Convert blob back to File
-              const compressedFile = new File([blob], file.name, {
+              // Convert blob back to File with .jpg extension to match JPEG encoding
+              const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || 'image';
+              const newFileName = `${baseName}.jpg`;
+              
+              const compressedFile = new File([blob], newFileName, {
                 type: 'image/jpeg',
                 lastModified: Date.now()
               });

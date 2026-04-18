@@ -35,7 +35,10 @@ export async function POST(request: NextRequest) {
 
     const { error: uploadError } = await adminSupabase.storage
       .from('product-images')
-      .upload(remoteName, file);
+      .upload(remoteName, file, {
+        contentType: 'image/jpeg',
+        upsert: false
+      });
 
     if (uploadError) {
       throw uploadError;

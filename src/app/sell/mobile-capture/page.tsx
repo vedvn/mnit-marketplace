@@ -54,6 +54,7 @@ function CaptureCore() {
       const data = await res.json();
       
       if (!res.ok || !data.success) {
+        console.error("Camera Session Upload Error:", data.error);
         throw new Error(data.error || 'Upload failed');
       }
       
