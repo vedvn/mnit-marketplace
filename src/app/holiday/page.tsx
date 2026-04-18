@@ -13,7 +13,7 @@ const InstagramIcon = () => (
 export default async function HolidayPage() {
   const supabase = await createClient();
   const { data: settings } = await supabase.from('admin_settings').select('holiday_message').single();
-  
+
   const message = settings?.holiday_message || "MNIT Marketplace is closed for the holiday break. See you soon!";
 
   return (
@@ -21,7 +21,7 @@ export default async function HolidayPage() {
       {/* Decorative Background Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px] animate-pulse" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary-500/5 rounded-full blur-[120px] animate-pulse" />
-      
+
       <div className="max-w-2xl w-full text-center space-y-12 relative z-10">
         {/* Iconic Header */}
         <div className="space-y-6">
@@ -31,7 +31,7 @@ export default async function HolidayPage() {
               <Palmtree className="w-12 h-12 text-emerald-600" />
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-foreground italic">
               Holiday <span className="text-emerald-600">Break</span>
@@ -46,13 +46,13 @@ export default async function HolidayPage() {
 
         {/* Custom Message Card */}
         <div className="glass-card p-10 md:p-16 rounded-[40px] border-2 border-black/5 shadow-2xl relative group overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
-          
+          <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-emerald-500/50 to-transparent" />
+
           <div className="space-y-8">
             <p className="text-xl md:text-2xl font-medium leading-relaxed text-foreground/80 italic">
               "{message}"
             </p>
-            
+
             <div className="pt-8 border-t border-black/5 flex flex-wrap justify-center gap-10">
               <div className="text-center">
                 <p className="text-[9px] font-black uppercase tracking-widest text-foreground/30 mb-2">Status</p>
