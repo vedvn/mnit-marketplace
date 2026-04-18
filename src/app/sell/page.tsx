@@ -259,13 +259,28 @@ export default function SellPage() {
                 originalPrice && parseFloat(price) > parseFloat(originalPrice) ? 'border-red-500/50 bg-red-500/5' : 'border-black/20'
               }`} 
             />
-            {originalPrice && parseFloat(price) > parseFloat(originalPrice) ? (
-              <p className="text-[10px] text-red-500 font-bold animate-pulse ml-1">
-                Warning: Selling price should be less than or equal to Original Price (MRP).
-              </p>
-            ) : (
-              <p className="text-[10px] text-foreground/40 ml-1">Showing a higher original price (MRP) can help you sell faster!</p>
-            )}
+            <div className="flex flex-col gap-1 ml-1 mt-1">
+              {originalPrice && parseFloat(price) > parseFloat(originalPrice) ? (
+                <p className="text-[10px] text-red-500 font-bold animate-pulse">
+                  Warning: Selling price should be less than or equal to Original Price (MRP).
+                </p>
+              ) : (
+                <p className="text-[10px] text-foreground/40 font-medium">Showing a higher original price (MRP) can help you sell faster!</p>
+              )}
+              
+              {price && parseFloat(price) > 0 && (
+                <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-xl mt-2 animate-in fade-in slide-in-from-top-1">
+                  <p className="text-[10px] text-emerald-700 font-bold uppercase tracking-widest flex items-center justify-between">
+                    <span>Platform Fee ({feePercent}%)</span>
+                    <span>- ₹{(parseFloat(price) * feePercent / 100).toFixed(2)}</span>
+                  </p>
+                  <p className="text-sm font-black text-emerald-600 mt-1 flex items-center justify-between">
+                    <span>Estimated Payout</span>
+                    <span>₹{(parseFloat(price) - (parseFloat(price) * feePercent / 100)).toFixed(2)}</span>
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">

@@ -8,6 +8,7 @@ import { signOut } from '@/lib/auth-actions';
 import { createClient } from '@/lib/supabase/server';
 import BanTimer from '@/components/BanTimer';
 import { redirect } from 'next/navigation';
+import { ShieldBan, Clock, AlertTriangle } from 'lucide-react';
 
 export default async function BannedPage() {
   const supabase = await createClient();
