@@ -118,8 +118,14 @@ export async function middleware(request: NextRequest) {
       triggerWelcomeEmail(user.email!, user.user_metadata?.full_name || 'User').catch(console.error);
     }
 
-    // 3. Profile completion gate — redirect to /complete-profile if phone is missing
-    const profileComplete = !!profile?.phone_number;
+    // 3. Profile completion gate — check if record exists in user_financials
+    const { data: financials } = await supabase
+      .from('user_financials')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+
+    const profileComplete = !!financials;
     const isOnCompleteProfile = path === '/complete-profile';
     if (!profileComplete && !isOnCompleteProfile) {
       const url = request.nextUrl.clone();
