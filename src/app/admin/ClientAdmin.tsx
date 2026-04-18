@@ -3,7 +3,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import { getAdminDashboardData, adminBanUser, adminUnbanUser, adminDeleteTransaction, adminCreateCategory, adminDeleteCategory, adminUpdatePayoutStatus } from '@/lib/admin-actions';
 import { getPendingProducts, approveProduct, rejectProduct } from '@/lib/employee-actions';
-import { Loader2, ShieldAlert, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users, Trash2, Tag, PlusCircle, ChevronDown, ChevronUp, CheckCircle2, Clock, CreditCard, ExternalLink, Phone } from 'lucide-react';
+import { Loader2, ShieldAlert, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users, Trash2, Tag, PlusCircle, ChevronDown, ChevronUp, CheckCircle2, Clock, CreditCard, ExternalLink, Phone, Copy, Check } from 'lucide-react';
 
 export default function ClientAdmin() {
   const [loading, setLoading] = useState(true);
@@ -13,6 +13,7 @@ export default function ClientAdmin() {
   const [products, setProducts] = useState<any[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expandedTx, setExpandedTx] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Broadcast State
   const [isBroadcasting, setIsBroadcasting] = useState(false);
@@ -61,6 +62,12 @@ export default function ClientAdmin() {
     await adminUpdatePayoutStatus(txId, status);
     await fetchData();
     setActionLoading(null);
+  }
+
+  function handleCopy(text: string, id: string) {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   }
 
   // Ban Actions
@@ -269,13 +276,31 @@ export default function ClientAdmin() {
                                 {tx.seller?.upi_id ? (
                                   <div>
                                     <p className="text-[10px] uppercase font-bold text-primary-600/60 mb-0.5">UPI ID</p>
-                                    <p className="font-mono text-sm font-bold bg-white px-2 py-1 rounded inline-block">{tx.seller.upi_id}</p>
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-mono text-sm font-bold bg-white px-2 py-1 rounded inline-block">{tx.seller.upi_id}</p>
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); handleCopy(tx.seller.upi_id, `upi-${tx.id}`); }}
+                                        className="p-1.5 rounded-md hover:bg-foreground/5 text-primary-600 transition-colors"
+                                      >
+                                        {copiedId === `upi-${tx.id}` ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                                      </button>
+                                    </div>
                                   </div>
                                 ) : (
                                   <div className="space-y-2">
                                     <div>
                                       <p className="text-[10px] uppercase font-bold text-primary-600/60 mb-0.5">Account Number</p>
-                                      <p className="font-mono text-sm font-bold">{tx.seller?.bank_account_number || 'N/A'}</p>
+                                      <div className="flex items-center gap-2">
+                                        <p className="font-mono text-sm font-bold">{tx.seller?.bank_account_number || 'N/A'}</p>
+                                        {tx.seller?.bank_account_number && (
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); handleCopy(tx.seller.bank_account_number, `bank-${tx.id}`); }}
+                                            className="p-1 rounded hover:bg-foreground/5 text-primary-600 transition-colors"
+                                          >
+                                            {copiedId === `bank-${tx.id}` ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
                                     <div>
                                       <p className="text-[10px] uppercase font-bold text-primary-600/60 mb-0.5">IFSC Code</p>
