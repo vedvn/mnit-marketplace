@@ -88,8 +88,8 @@ export default function EditProfileForm({ initialData }: EditProfileFormProps) {
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-xl glass-card rounded-[2.5rem] border border-white/20 p-8 shadow-2xl relative animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-100 flex items-start justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 pt-24 sm:pt-6 overflow-y-auto">
+          <div className="w-full max-w-xl glass-card rounded-[2.5rem] border border-white/20 p-6 sm:p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 mb-6">
             <button
               onClick={() => setIsOpen(false)}
               className="absolute top-6 right-6 p-2 rounded-full hover:bg-foreground/10 text-foreground/40 transition-colors"

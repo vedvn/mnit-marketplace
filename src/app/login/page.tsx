@@ -117,8 +117,11 @@ export default function LoginPage() {
             </Link>
           </p>
 
-          <div className="mt-4 text-center">
-            <Link href="/market" className="text-xs text-foreground/40 hover:text-foreground/70 transition-colors uppercase tracking-widest font-bold">
+          <div className="mt-8 text-center relative z-10">
+            <Link 
+              href="/market" 
+              className="inline-block py-2 px-4 text-xs text-foreground/40 hover:text-foreground/70 transition-colors uppercase tracking-widest font-bold"
+            >
               Browse Market without logging in →
             </Link>
           </div>

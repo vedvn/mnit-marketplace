@@ -95,8 +95,8 @@ export default function DisputeForm({
   }
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center p-6 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-md glass-card p-8 rounded-3xl border border-black/10 shadow-2xl relative animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-100 flex items-start justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 pt-24 sm:pt-6 overflow-y-auto">
+      <div className="w-full max-w-md glass-card p-6 sm:p-8 rounded-3xl border border-black/10 shadow-2xl relative animate-in zoom-in-95 duration-200 mb-6">
         <button
           onClick={() => setIsOpen(false)}
           className="absolute top-6 right-6 p-2 rounded-full hover:bg-foreground/5 text-foreground/40 transition-colors"
