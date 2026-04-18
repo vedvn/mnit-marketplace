@@ -1,199 +1,215 @@
 import Link from "next/link";
-import { ArrowLeft, Eye, Database, Lock, Share2, UserX, Bell, RefreshCw, Mail } from "lucide-react";
+import { ArrowLeft, Eye, Database, Lock, Share2, UserX, Bell, RefreshCw, Mail as MailIcon, ShieldCheck, Cookie, UserSquare2, Fingerprint } from "lucide-react";
 
 export const metadata = {
   title: "Privacy Policy | MNIT Marketplace",
   description: "Learn how MNIT Marketplace collects, uses, and protects your personal data.",
 };
 
-const sections = [
-  {
-    id: "data-collected",
-    icon: Database,
-    number: "01",
-    title: "Data We Collect",
-    content: [
-      {
-        heading: "Account Information",
-        body: "When you register, we collect your full name, your @mnit.ac.in institutional email address, and a securely hashed version of your password (we never store your password in plain text). This information is necessary to operate a verified, campus-exclusive marketplace.",
-      },
-      {
-        heading: "Profile Information",
-        body: "You may optionally provide additional profile details such as your hostel/residential address on campus, phone number, and UPI ID. Your phone number and UPI ID are used solely for payout purposes and are never shared publicly.",
-      },
-      {
-        heading: "Listing Data",
-        body: "When you list an item, we collect the item title, description, price, category, pickup address, publicly displayed gallery images, and a private live verification photo taken at the moment of listing. The live verification photo is stored securely and is accessible only to employee moderators.",
-      },
-      {
-        heading: "Transaction Data",
-        body: "We record payment transactions including the Razorpay order ID, payment ID, amount, and timestamp. We do not store your full bank account details, UPI PIN, or card numbers — these are handled exclusively by Razorpay's PCI-DSS compliant infrastructure.",
-      },
-      {
-        heading: "Dispute & Support Data",
-        body: "If you raise a support ticket or dispute, we collect the chosen category of the issue and your preferred resolution. To protect your privacy, the detailed reason for the dispute is encrypted at the application layer before being stored. It is only decrypted when viewed by an authorized employee moderator or platform administrator for resolution purposes.",
-      },
-      {
-        heading: "Usage Data",
-        body: "We collect anonymized analytics data via Google Analytics (page views, session duration, device type, geographic region at the city level). This data contains no personally identifiable information and is used solely to improve the platform.",
-      },
-    ],
-  },
-  {
-    id: "how-we-use",
-    icon: Eye,
-    number: "02",
-    title: "How We Use Your Data",
-    content: [
-      {
-        heading: "To Operate the Marketplace",
-        body: "Your account information is used to authenticate you, enforce the @mnit.ac.in eligibility requirement, display your profile within the platform, and associate your listings with your identity.",
-      },
-      {
-        heading: "For Payment Processing",
-        body: "Your UPI ID or bank details (provided during onboarding) are transmitted to Razorpay X to facilitate automatic seller payouts once a buyer confirms receipt. We do not process payment information ourselves.",
-      },
-      {
-        heading: "For Moderation & Safety",
-        body: "Your private live verification photo is used exclusively by our employee moderation team to verify that the item in your public listing exists and is genuinely in your possession. It is never shown to buyers or other users.",
-      },
-      {
-        heading: "For Platform Communications",
-        body: "We use your email address to send transactional messages including email verification on signup, notifications about your listings being approved or rejected, and critical account security alerts. We do not send marketing emails.",
-      },
-      {
-        heading: "For Enforcement",
-        body: "In cases of suspected fraud, ban evasion, or Terms & Conditions violations, your account data (email, device fingerprint, transaction history) may be reviewed by MNIT Marketplace administrators and, where required, shared with MNIT institute authorities.",
-      },
-    ],
-  },
-  {
-    id: "data-storage",
-    icon: Lock,
-    number: "03",
-    title: "Data Storage & Security",
-    content: [
-      {
-        heading: "Infrastructure",
-        body: "All user data is stored on Supabase (PostgreSQL), a secure cloud database platform. Data is encrypted at rest using AES-256 and in transit using TLS 1.3. Authentication tokens are short-lived and refreshed automatically.",
-      },
-      {
-        heading: "Media Storage",
-        body: "Listing images (both public gallery images and private verification photos) are stored in Supabase Storage, a secure object storage system. Public images are served via a CDN. Private verification images are stored in a restricted bucket with no public read access.",
-      },
-      {
-        heading: "Retention Period",
-        body: "Active account data is retained for the lifetime of your account. If you request account deletion, your personal data will be permanently removed within 30 days of the request. Anonymized transaction records may be retained for up to 1 year for audit purposes.",
-      },
-      {
-        heading: "Access Controls",
-        body: "Access to user data is strictly controlled. Regular users can only see their own private data. Employee moderators can view private verification photos only for listings under review. Platform administrators have elevated access for dispute resolution and enforcement.",
-      },
-    ],
-  },
-  {
-    id: "third-parties",
-    icon: Share2,
-    number: "04",
-    title: "Third-Party Services",
-    content: [
-      {
-        heading: "Supabase",
-        body: "Supabase powers our authentication (email/password login, email confirmation), our database (all user, listing, and transaction records), and our file storage. Supabase processes data under its own Privacy Policy and is GDPR-compliant.",
-      },
-      {
-        heading: "Razorpay",
-        body: "Razorpay processes all payment transactions and seller payouts. When you make a purchase, your payment details are entered directly into Razorpay's secure payment modal and are never transmitted to or stored on MNIT Marketplace servers. Razorpay is PCI-DSS Level 1 certified.",
-      },
-      {
-        heading: "Google Analytics",
-        body: "We use Google Analytics to collect anonymized, aggregated usage statistics. Google Analytics uses cookies to track session data. No personally identifiable data (name, email, user ID) is sent to Google. You can opt out of Google Analytics tracking via browser extensions.",
-      },
-      {
-        heading: "No Data Sales",
-        body: "MNIT Marketplace does not sell, rent, or trade your personal data to any third party for marketing or advertising purposes. Your data is used exclusively to operate the platform as described in this policy.",
-      },
-    ],
-  },
-  {
-    id: "user-rights",
-    icon: UserX,
-    number: "05",
-    title: "Your Rights",
-    content: [
-      {
-        heading: "Right to Access",
-        body: "You have the right to request a copy of all personal data we hold about you. To make such a request, email the admin team at mnitmarketplace@gmail.com with the subject 'Data Access Request'. We will respond within 14 days.",
-      },
-      {
-        heading: "Right to Correction",
-        body: "If any of your personal information is inaccurate or outdated, you can update most of it directly from your Profile page. For corrections that cannot be made self-service, contact the admin team.",
-      },
-      {
-        heading: "Right to Deletion",
-        body: "You may request permanent deletion of your account and associated data by emailing mnitmarketplace@gmail.com with the subject 'Account Deletion Request'. We will complete the deletion within 30 days. Note: if you have active pending transactions, deletion may be delayed until those are resolved.",
-      },
-      {
-        heading: "Right to Object",
-        body: "You may object to certain processing of your data, such as analytics tracking. Disabling Google Analytics cookies in your browser is sufficient to opt out of usage tracking on our platform.",
-      },
-    ],
-  },
-  {
-    id: "cookies",
-    icon: Bell,
-    number: "06",
-    title: "Cookies",
-    content: [
-      {
-        heading: "Authentication Cookies",
-        body: "We use cookies set by Supabase to maintain your login session. These are strictly necessary for the platform to function and cannot be disabled while you are logged in. They contain an encrypted session token with no personally identifiable information embedded.",
-      },
-      {
-        heading: "Analytics Cookies",
-        body: "Google Analytics sets cookies (_ga, _gid) to distinguish unique visitors and track sessions. These are non-essential cookies. You can block them using browser settings or a browser extension without affecting platform functionality.",
-      },
-      {
-        heading: "No Advertising Cookies",
-        body: "MNIT Marketplace does not use any advertising or tracking cookies from ad networks. You will not be retargeted on other websites based on your activity on our platform.",
-      },
-    ],
-  },
-  {
-    id: "updates",
-    icon: RefreshCw,
-    number: "07",
-    title: "Policy Updates",
-    content: [
-      {
-        heading: "Notification of Changes",
-        body: "If we make material changes to this Privacy Policy, we will notify registered users by email at their @mnit.ac.in address at least 7 days before the changes take effect. The updated policy will also be accessible at this URL.",
-      },
-      {
-        heading: "Continued Use",
-        body: "Your continued use of MNIT Marketplace after a Privacy Policy update constitutes your acceptance of the revised policy. If you do not accept the changes, you should stop using the platform and request account deletion.",
-      },
-    ],
-  },
-  {
-    id: "contact",
-    icon: Mail,
-    number: "08",
-    title: "Contact & Questions",
-    content: [
-      {
-        heading: "Data Controller",
-        body: "MNIT Marketplace is operated by students of Malaviya National Institute of Technology, Jaipur. For any privacy-related queries, data deletion requests, or concerns, please contact the platform administration team.",
-      },
-      {
-        heading: "Contact Details",
-        body: "Email: mnitmarketplace@gmail.com · Subject: Privacy Query\nAddress: MNIT Jaipur, JLN Marg, Jaipur, Rajasthan 302017\nWe aim to respond to all privacy-related queries within 5 business days.",
-      },
-    ],
-  },
-];
-
 export default function PrivacyPage() {
+  const sections = [
+    {
+      id: "data-collected",
+      icon: Database,
+      number: "01",
+      title: "Data We Collect",
+      content: [
+        {
+          heading: "Personal Identification Data",
+          body: "We collect your full legal name and your official @mnit.ac.in institutional email address. This data is mandatory for the verification of your status as a current member of the MNIT community and to maintain a secure, campus-exclusive environment.",
+        },
+        {
+          heading: "Voluntary Profile Information",
+          body: "Users may optionally provide additional details such as hostel residential address, phone number, and UPI ID. Phone numbers and UPI IDs are utilized solely for facilitating secure transaction payouts and platform-critical communications. This data remains private and is never displayed to other users.",
+        },
+        {
+          heading: "Marketplace Listing Data",
+          body: "When listing an item, we collect the product title, multi-angle gallery images, detailed descriptions, and a private 'Live Verification Photo'. We also log the pickup location chosen from our specified on-campus handover points.",
+        },
+        {
+          heading: "Transaction & Payment History",
+          body: "We record transaction metadata including Razorpay Order IDs, Payment IDs, transaction timestamps, and amounts. We do *not* store raw financial credentials such as card numbers or UPI PINs; these are processed exclusively by Razorpay's PCI-DSS compliant infrastructure.",
+        },
+      ],
+    },
+    {
+      id: "how-we-use",
+      icon: Eye,
+      number: "02",
+      title: "Usage of Personal Data",
+      content: [
+        {
+          heading: "Marketplace Facilitation",
+          body: "Your data is used primarily to authenticate your identity, manage your listings, and facilitate the connection between buyers and sellers. We use your email to send critical transaction updates and security alerts.",
+        },
+        {
+          heading: "Platform Moderation & Safety",
+          body: "The 'Live Verification Photo' and your device fingerprint are used by our employee moderation team to prevent fraud and ensure that all items listed are in the physical possession of the seller.",
+        },
+        {
+          heading: "Automated Payout Processing",
+          body: "Your provided payout details are shared with Razorpay X to enable automated fund transfers once a buyer confirms a successful handover. We do not manually handle or store your bank credentials beyond what is necessary for this API interaction.",
+        },
+      ],
+    },
+    {
+      id: "data-storage",
+      icon: Lock,
+      number: "03",
+      title: "Security & Encryption Standards",
+      content: [
+        {
+          heading: "Encryption at Rest and in Transit",
+          body: "All personal and transactional data is stored on Supabase (PostgreSQL) and is encrypted at rest using AES-256. All communication between your browser and our platform is encrypted via TLS 1.3/SSL, ensuring your data cannot be intercepted.",
+        },
+        {
+          heading: "Restricted Media Storage",
+          body: "Private verification photos are stored in an isolated Supabase Storage bucket. These images are inaccessible via public URLs and can only be viewed by authorized administrators using time-limited, cryptographically signed internal links.",
+        },
+        {
+          heading: "Infrastructure Redundancy",
+          body: "Data is mirrored across multiple secure cloud regions to prevent data loss. Access to production databases is strictly limited to the Platform Administration Team through multi-factor authentication.",
+        },
+      ],
+    },
+    {
+      id: "third-parties",
+      icon: Share2,
+      number: "04",
+      title: "Third-Party Data Disclosures",
+      content: [
+        {
+          heading: "Razorpay (Payment Infrastructure)",
+          body: "We share essential order metadata with Razorpay to process your payments securely. They act as an independent data processor and manage all financial credentials under their own strict privacy standards.",
+        },
+        {
+          heading: "Google Analytics (Behavioral Data)",
+          body: "We use Google Analytics to collect anonymized usage statistics. We do not share your Name, Email, or User ID with Google. This data helps us optimize platform performance and surface popular categories.",
+        },
+        {
+          heading: "Transactional Email Systems",
+          body: "Your institutional email address is shared with our transactional mail providers solely for the delivery of platform-critical notifications and account recovery links.",
+        },
+      ],
+    },
+    {
+      id: "roles",
+      icon: ShieldCheck,
+      number: "05",
+      title: "Data Protection Roles",
+      content: [
+        {
+          heading: "The Data Controller",
+          body: "The MNIT Marketplace Platform Administration Team acts as the primary Data Controller. We determine the purposes and means of processing your data, prioritizing campus safety and user privacy above all else.",
+        },
+        {
+          heading: "The Data Processors",
+          body: "Cloud infrastructure providers (Supabase) and payment gateways (Razorpay) act as Data Processors, handling your information strictly according to our security protocols and instructions.",
+        },
+      ],
+    },
+    {
+      id: "rights",
+      icon: UserX,
+      number: "06",
+      title: "User Rights & Data Control",
+      content: [
+        {
+          heading: "Access and Correction",
+          body: "You have the right to access all personal data we hold about you and correct any inaccuracies directly through your Profile Dashboard or by contacting the administration team.",
+        },
+        {
+          heading: "The Right to be Forgotten",
+          body: "Upon request, we will permanently delete your personal account data within 30 days, provided there are no active disputes or legal retention obligations associated with your transaction history.",
+        },
+        {
+          heading: "Data Portability",
+          body: "You may request a machine-readable export of the data you have provided to us for use in other services, which we will provide within 14 business days.",
+        },
+      ],
+    },
+    {
+      id: "notices",
+      icon: Bell,
+      number: "07",
+      title: "Policy Updates & Notifications",
+      content: [
+        {
+          heading: "Protocol for Policy Changes",
+          body: "MNIT Marketplace reserves the right to modify this Privacy Policy. Any material changes that impact how we use your data will be communicated via your @mnit.ac.in email address at least 7 days before taking effect.",
+        },
+        {
+          heading: "Log of Updates",
+          body: "The platform maintains a version-controlled history of privacy policies. Your continued use of the platform after an update constitutes acceptance of the new terms.",
+        },
+      ],
+    },
+    {
+      id: "contact",
+      icon: MailIcon,
+      number: "08",
+      title: "Contact & Grievance Redressal",
+      content: [
+        {
+          heading: "Privacy Support Channels",
+          body: "For any privacy-related queries, security reports, or data deletion requests, you may reach our administration team via the following channels.",
+        },
+        {
+          heading: "Contact Details",
+          body: "Email: mnitmarketplace@gmail.com · Subject: Privacy Query\nPhone: +91 7760677104\nAddress: MNIT Jaipur, JLN Marg, Jaipur, Rajasthan 302017",
+        },
+      ],
+    },
+    {
+      id: "cookies",
+      icon: Cookie,
+      number: "09",
+      title: "Cookies & Tracking Mechanisms",
+      content: [
+        {
+          heading: "Essential Session Cookies",
+          body: "We set mandatory cookies through Supabase to maintain your secure authentication session. These are strictly necessary for the platform to function and expire automatically when you log out.",
+        },
+        {
+          heading: "Performance & Analytics",
+          body: "Non-essential cookies from Google Analytics may be used to track behavioral patterns. You can opt-out of these through your browser's cookie settings without impacting your use of the marketplace.",
+        },
+      ],
+    },
+    {
+      id: "children",
+      icon: UserSquare2,
+      number: "10",
+      title: "Children's Privacy Protection",
+      content: [
+        {
+          heading: "Minimum Age Requirement",
+          body: "MNIT Marketplace is strictly restricted to users aged 18 or older. We do not knowingly collect or process data from minors. Registration from a minor is a violation of our terms and will result in account termination.",
+        },
+        {
+          heading: "Underage Data Removal",
+          body: "If we discover that data has been collected from an individual under 18, we will immediately initiate an irreversible deletion process for that data and notify the user via their institutional email.",
+        },
+      ],
+    },
+    {
+      id: "dpdp",
+      icon: Fingerprint,
+      number: "11",
+      title: "DPDP Act Compliance (India)",
+      content: [
+        {
+          heading: "Statutory User Rights",
+          body: "Under India's Digital Personal Data Protection (DPDP) Act, you have the right to request a summary of processed data, nominate a representative for data management, and withdraw your consent for future processing at any time.",
+        },
+        {
+          heading: "Grievance Redressal Officer",
+          body: "In compliance with the Act, our Platform Administrator serves as the Grievance Redressal Officer for all personal data matters. We aim to resolve all grievances within the statutory timeframe.",
+        },
+      ],
+    },
+  ];
+
   return (
     <main className="min-h-screen bg-background">
       {/* Hero */}

@@ -1,4 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Staff Desk',
+  description: 'MNIT Marketplace employee dashboard for listing moderation and dispute resolution.',
+};
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import ClientEmployee from './ClientEmployee';

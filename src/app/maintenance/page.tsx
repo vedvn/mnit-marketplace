@@ -1,6 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { HardHat } from 'lucide-react';
 import { redirect } from 'next/navigation';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Platform Maintenance',
+  description: 'MNIT Marketplace is currently undergoing scheduled maintenance to improve our secure campus trading platform. We will be back online shortly.',
+};
 
 export default async function MaintenancePage() {
   const supabase = createAdminClient();

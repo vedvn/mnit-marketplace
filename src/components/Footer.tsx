@@ -38,7 +38,7 @@ const FOOTER_LINKS = {
   ],
   Campus: [
     { label: "MNIT Jaipur", href: "https://mnit.ac.in", external: true },
-    { label: "Student Portal", href: "https://erp.mnit.ac.in", external: true },
+    { label: "Student Portal", href: "https://mniterp.org", external: true },
   ],
 };
 
@@ -63,8 +63,8 @@ export default function Footer() {
               <span className="text-white text-xl font-black tracking-tighter">MARKETPLACE</span>
             </Link>
             <p className="text-zinc-400 text-sm leading-relaxed font-light">
-              The official, secure campus marketplace exclusively for MNIT Jaipur students.
-              Zero scams. Verified listings. Automated payouts.
+              A secure, independent campus marketplace initiative exclusively for MNIT students.
+              Zero scams. Verified listings. Secure payouts.
             </p>
             <div className="flex items-center gap-2 mt-5 text-primary-400">
               <ShieldCheck className="w-4 h-4" />
@@ -84,7 +84,7 @@ export default function Footer() {
             </div>
             <div className="p-6 sm:px-8 sm:py-6 text-center">
               <div className="text-3xl font-black text-white mb-1">12h</div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Escrow Hold</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Safety Hold</div>
             </div>
           </div>
         </div>
@@ -137,9 +137,8 @@ export default function Footer() {
                 </span>
               </a>
               <div className="flex items-start gap-3">
-                <MapPin className="w-4 h-4 mt-0.5 text-zinc-600 shrink-0" />
                 <span className="text-sm text-zinc-400 leading-relaxed">
-                  MNIT Jaipur, JLN Marg,<br />Jaipur, Rajasthan 302017
+                  Malaviya National Institute of Technology,<br />JLN Marg, Jaipur, Rajasthan 302017
                 </span>
               </div>
             </div>
@@ -150,7 +149,7 @@ export default function Footer() {
       {/* Bottom Bar */}
       <div className="w-full max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">
-          © {currentYear} MNIT Marketplace · Built for MNIT Students
+          © {currentYear} MNIT Marketplace · Independent Student Initiative · Not Affiliated with MNIT Jaipur
         </p>
 
         {/* Social Links */}

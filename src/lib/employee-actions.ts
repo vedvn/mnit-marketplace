@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { logSecurityEvent } from './admin-janitor';
 
@@ -24,13 +25,29 @@ export async function getPendingProducts() {
 
   const supabase = await createClient();
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('products')
     .select('*, seller:users(name, email)')
     .eq('status', 'PENDING_REVIEW')
     .order('created_at', { ascending: false });
 
-  return data || [];
+  if (error || !data) return [];
+
+  // 1. Compliance Fix: Generate Signed URLs for Private Verification Photos
+  // Privacy Policy Section 03 Compliance
+  const productsWithSignedUrls = await Promise.all(data.map(async (product) => {
+    if (product.live_photo_url && !product.live_photo_url.startsWith('http')) {
+      // It's a storage path in the private bucket
+      const { data: signedData } = await supabase.storage
+        .from('verification-photos')
+        .createSignedUrl(product.live_photo_url, 60); // 60s expiry
+      
+      return { ...product, live_photo_url: signedData?.signedUrl || product.live_photo_url };
+    }
+    return product;
+  }));
+
+  return productsWithSignedUrls;
 }
 
 export async function approveProduct(productId: string) {
@@ -41,7 +58,7 @@ export async function approveProduct(productId: string) {
   // 1. Get product and seller details before updating
   const { data: product } = await supabase
     .from('products')
-    .select('title, seller:users(email, name)')
+    .select('title, live_photo_url, seller:users(email, name)')
     .eq('id', productId)
     .single();
 
@@ -51,6 +68,27 @@ export async function approveProduct(productId: string) {
     .eq('id', productId);
     
   if (error) return { error: error.message };
+
+  // 1a. Storage Optimization: Delete private verification photo after approval
+  // Data Minimization Compliance
+  if (product?.live_photo_url) {
+    try {
+      const adminSupabase = createAdminClient();
+      // Delete from private bucket
+      const { error: storageError } = await adminSupabase.storage
+        .from('verification-photos')
+        .remove([product.live_photo_url]);
+      
+      if (!storageError) {
+        // Clear reference in DB since file is gone
+        await adminSupabase.from('products').update({ live_photo_url: null }).eq('id', productId);
+      } else {
+        console.error('Failed to purge verification photo:', storageError);
+      }
+    } catch (purgeErr) {
+      console.error('Error during verification photo purge:', purgeErr);
+    }
+  }
 
   // 2. Fire approval email asynchronously (don't await so UI doesn't block)
   // Safely extract string values as Supabase typings can infer array/unknown for joins

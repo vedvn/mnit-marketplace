@@ -1,7 +1,13 @@
 import { createClient } from '@/lib/supabase/server';
+import { Metadata } from 'next';
 import { redirect, notFound } from 'next/navigation';
 import { CheckCircle2, Phone, MapPin, IndianRupee, PackageCheck, UserCircle2, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: 'Order Details',
+  description: 'View the secure transaction status and handover details for your MNIT Marketplace purchase.',
+};
 
 export default async function OrderConfirmationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

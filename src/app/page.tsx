@@ -1,5 +1,11 @@
 import Link from "next/link";
 import { ArrowRight, ShoppingBag, ShieldCheck, Zap, Camera, CreditCard, Handshake, CheckCircle, Package, Laptop, BookOpen, Shirt, Music, Dumbbell, ChevronRight, Ban, Lock } from "lucide-react";
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'MNIT Marketplace | The Exclusive Campus Marketplace',
+  description: 'The official way for MNIT Jaipur students to buy and sell used items securely. Join the campus exclusive community today.',
+};
 
 export default function Home() {
   return (
@@ -38,7 +44,7 @@ export default function Home() {
           {[
             { value: "100%", label: "MNIT Verified Users" },
             { value: "₹0", label: "Hidden Fees" },
-            { value: "12h", label: "Escrow Release Time" },
+            { value: "12h", label: "Safety Hold Period" },
             { value: "Live", label: "Photo Verification" },
             { value: "Razorpay", label: "Secure Payments" },
             { value: "Zero", label: "Tolerance for Fraud" },
@@ -55,7 +61,7 @@ export default function Home() {
       <section className="w-full max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 bento-border-b">
         <FeatureCard icon={<ShieldCheck className="w-8 h-8 text-foreground" />} title="Verified Only." description="Every user is strictly verified via @mnit.ac.in. No outsiders, complete trust." />
         <FeatureCard icon={<Zap className="w-8 h-8 text-foreground" />} title="Instant Checkout." description="No awkward bargaining. See an item, pay securely via Razorpay, arrange pickup." />
-        <FeatureCard icon={<ShoppingBag className="w-8 h-8 text-foreground" />} title="Automated Escrow." description="Funds are held securely and released directly 12hrs after successful purchase." />
+        <FeatureCard icon={<ShoppingBag className="w-8 h-8 text-foreground" />} title="Secure Holding." description="Funds are held safely by the administrator and released 12hrs after successful purchase." />
       </section>
 
       {/* ─── HOW IT WORKS ─── */}
@@ -76,7 +82,7 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0 bento-border-t bento-border-l">
           {[
             { step: "01", icon: ShoppingBag, title: "Browse Market", desc: "Explore verified listings from real MNIT students. Every item is moderated before going live." },
-            { step: "02", icon: CreditCard, title: "Pay Securely", desc: "Found what you need? Pay instantly via Razorpay. Your money is held in escrow — never sent to seller yet." },
+            { step: "02", icon: CreditCard, title: "Pay Securely", desc: "Found what you need? Pay instantly via Razorpay. Your money is held by the platform—never sent to seller yet." },
             { step: "03", icon: Handshake, title: "Meet on Campus", desc: "Arrange a pickup at the seller's stated campus location. Inspect the item physically before accepting." },
             { step: "04", icon: CheckCircle, title: "Confirm & Done", desc: "Happy with the item? Hit 'Confirm Received' in your profile. Seller gets paid. You're protected throughout." },
           ].map(({ step, icon: Icon, title, desc }) => (
@@ -148,7 +154,7 @@ export default function Home() {
               {[
                 { icon: Camera, title: "Mandatory Live Photos", desc: "Every seller must take a live camera photo of the item at listing time. No stock photos." },
                 { icon: ShieldCheck, title: "Employee Moderation", desc: "Every listing is reviewed by a trained campus moderator against gallery images." },
-                { icon: Lock, title: "Escrow Protection", desc: "Your money is never sent to the seller until you confirm the item physically." },
+                { icon: Lock, title: "Platform Guarantee", desc: "Your money is never sent to the seller until you confirm the item physically." },
                 { icon: Ban, title: "Permanent Bans", desc: "Proven fraudulent behavior results in an immediate, permanent ban." },
               ].map(({ icon: Icon, title, desc }) => (
                 <div key={title} className="flex items-start gap-4 sm:gap-5">

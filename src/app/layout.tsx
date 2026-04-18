@@ -13,8 +13,35 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "MNIT Marketplace | Exclusive Campus Marketplace",
-  description: "The official, secure way for MNIT students to buy and sell items on campus. No haggling, secure payments, and strict privacy.",
+  metadataBase: new URL('https://mnit-marketplace.com'),
+  title: {
+    template: '%s | MNIT Marketplace',
+    default: 'MNIT Marketplace | Secure Campus Marketplace',
+  },
+  description: 'The secure and independent campus marketplace for MNIT students. Buy, sell, and trade items safely within the community.',
+  keywords: ['MNIT', 'Jaipur', 'Marketplace', 'Campus', 'Student', 'Buy', 'Sell', 'Used Items', 'MNIT Jaipur'],
+  authors: [{ name: 'MNIT Students' }],
+  creator: 'MNIT Marketplace Team',
+  publisher: 'Independent Platform Administration',
+  openGraph: {
+    type: 'website',
+    locale: 'en_IN',
+    url: 'https://mnit-marketplace.com',
+    siteName: 'MNIT Marketplace',
+    title: 'MNIT Marketplace | Exclusive Campus Marketplace',
+    description: 'The secure and independent campus marketplace for MNIT students.',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'MNIT Marketplace' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'MNIT Marketplace',
+    description: 'The secure campus marketplace for MNIT students.',
+    images: ['/og-image.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 import NavBar from "@/components/NavBar";

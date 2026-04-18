@@ -1,6 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
 import { Palmtree, Calendar, Mail } from 'lucide-react';
 import Link from 'next/link';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Holiday Break Notice',
+  description: 'MNIT Marketplace is currently on a holiday break. Transactions and listings are temporarily suspended. We will return soon!',
+};
 
 const InstagramIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

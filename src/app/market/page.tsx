@@ -1,4 +1,10 @@
 import { getProducts, getCategories } from '@/lib/market-actions';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Browse Marketplace',
+  description: 'Explore verified listings from MNIT Jaipur students. Find textbooks, electronics, and more at campus-exclusive prices.',
+};
 import Link from 'next/link';
 import MarketGrid from './MarketGrid';
 

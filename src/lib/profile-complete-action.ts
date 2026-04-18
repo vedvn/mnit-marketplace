@@ -31,15 +31,18 @@ export async function completeProfile(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Not logged in.' };
 
+  // Compliance Fix: Save sensitive PII to the hardened user_financials table
+  // instead of the public users table.
   const { error } = await supabase
-    .from('users')
-    .update({
+    .from('user_financials')
+    .upsert({
+      id: user.id,
       phone_number: phone,
       bank_account_number: payoutMethod === 'bank' ? bankAccount : null,
       bank_ifsc: payoutMethod === 'bank' ? bankIfsc.toUpperCase() : null,
       upi_id: payoutMethod === 'upi' ? upiId : null,
-    })
-    .eq('id', user.id);
+      updated_at: new Date().toISOString()
+    });
 
   if (error) return { error: error.message };
 

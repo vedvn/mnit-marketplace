@@ -42,13 +42,19 @@ export async function getCategories() {
 }
 
 import { sanitizeText } from './security';
+import { CAMPUS_SAFE_ZONES, isWithinSafetyWindow } from './constants/locations';
 
 export async function createProduct(formData: FormData, imageUrls: string[], livePhotoUrl: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized' };
 
-  // 0. Security Guard: Rate Limiting (Prevent Spam)
+  // 1. Compliance Check: Safety Window (Terms Section 04)
+  if (!isWithinSafetyWindow()) {
+    return { error: 'Listing restricted. All transactions and handovers must be scheduled between 7:00 AM and 9:00 PM.' };
+  }
+
+  // 2. Security Guard: Rate Limiting
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { count: recentProducts } = await supabase
     .from('products')
@@ -60,19 +66,32 @@ export async function createProduct(formData: FormData, imageUrls: string[], liv
     return { error: 'Marketplace cooldown active. Please wait an hour before listing more items.' };
   }
 
-  // 0a. Security Guard: Global Holiday Mode Check
-  const { data: settings } = await supabase.from('admin_settings').select('is_holiday_mode').single();
-  if (settings?.is_holiday_mode) {
-    return { error: 'Marketplace is currently closed for the holiday break.' };
+  // 0a. Security Guard: Holiday Mode Check
+  const { data: settings } = await supabase.from('admin_settings').select('is_maintenance_mode').single();
+  if (settings?.is_maintenance_mode) {
+    return { error: 'Marketplace is currently closed for maintenance/holiday break.' };
   }
 
   const title = sanitizeText(formData.get('title') as string);
   const description = sanitizeText(formData.get('description') as string);
   const condition = formData.get('condition') as string;
-  const pickup_address = sanitizeText(formData.get('pickup_address') as string);
+  const pickup_address = formData.get('pickup_address') as string;
+  
+  // 3. Compliance Check: Validated Locations (Terms Section 04)
+  const isValidLocation = CAMPUS_SAFE_ZONES.some(zone => zone.id === pickup_address);
+  if (!isValidLocation) {
+    return { error: 'Invalid handover location. Please select one of the official campus safe-zones.' };
+  }
+
   const price = parseFloat(formData.get('price') as string);
   const original_price_raw = formData.get('original_price');
   const original_price = original_price_raw ? parseFloat(original_price_raw as string) : null;
+
+  // 4. Compliance Check: Price Integrity
+  if (original_price && price > original_price) {
+    return { error: 'Your selling price cannot be higher than the original market price. Please provide a fair value.' };
+  }
+
   const category_id = formData.get('category_id') as string;
 
   const { error } = await supabase.from('products').insert({
@@ -85,7 +104,7 @@ export async function createProduct(formData: FormData, imageUrls: string[], liv
     price,
     original_price,
     images: imageUrls,
-    live_photo_url: livePhotoUrl,
+    live_photo_url: livePhotoUrl, // Note: Expecting a storage path from the private bucket here
     status: 'PENDING_REVIEW'
   });
 

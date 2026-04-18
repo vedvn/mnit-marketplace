@@ -5,6 +5,40 @@ import CheckoutButton from './CheckoutButton';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { Metadata, ResolvingMetadata } from 'next';
+
+export async function generateMetadata(
+  { params }: { params: Promise<{ id: string }> },
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const { id } = await params;
+  const product = await getProductById(id);
+
+  if (!product) {
+    return {
+      title: 'Product Not Found',
+    };
+  }
+
+  const description = `${product.title} - ₹${product.price} | ${product.condition.replace('_', ' ')} condition. Available for pickup at ${product.pickup_address} on MNIT campus.`;
+
+  return {
+    title: product.title,
+    description: description,
+    openGraph: {
+      title: `${product.title} | MNIT Marketplace`,
+      description: description,
+      images: product.images?.[0] ? [product.images[0]] : [],
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: product.title,
+      description: description,
+      images: product.images?.[0] ? [product.images[0]] : [],
+    },
+  };
+}
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -65,12 +99,18 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               
               {product.original_price && product.original_price > product.price && (
                 <div className="flex items-center gap-3 pb-1 sm:pb-2">
-                  <span className="text-xl sm:text-2xl text-foreground/40 font-bold line-through decoration-foreground/30 truncate">
-                    ₹{product.original_price}
-                  </span>
-                  <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-500 font-black text-xs sm:text-sm uppercase tracking-widest rounded-md border border-emerald-500/20">
-                    {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black uppercase tracking-widest text-foreground/30 leading-none mb-1">Original MRP</span>
+                    <span className="text-xl sm:text-2xl text-foreground/40 font-bold line-through decoration-foreground/30 truncate">
+                      ₹{product.original_price}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black uppercase tracking-widest text-emerald-600 leading-none mb-1">You Save ₹{Math.round(product.original_price - product.price)}</span>
+                    <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-500 font-black text-xs sm:text-sm uppercase tracking-widest rounded-md border border-emerald-500/20">
+                      {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
+                    </span>
+                  </div>
                 </div>
               )}
             </div>

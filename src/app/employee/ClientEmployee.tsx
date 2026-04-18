@@ -333,6 +333,28 @@ export default function ClientEmployee() {
                     </div>
                   </div>
                 </div>
+
+                <div className="flex flex-col gap-3 min-w-[140px] border-t md:border-t-0 md:border-l border-black/5 pt-4 md:pt-0 md:pl-8">
+                  <div>
+                    <p className="text-[10px] uppercase font-black tracking-widest text-foreground/30 mb-1">Payout Status</p>
+                    <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md ${
+                      tx.payout_status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-600' : 
+                      tx.payout_status === 'SCHEDULED' ? 'bg-blue-500/10 text-blue-600' : 
+                      'bg-zinc-100 text-zinc-500'
+                    }`}>
+                      {tx.payout_status}
+                    </span>
+                  </div>
+                  {tx.buyer_confirmed_at && (
+                    <div>
+                      <p className="text-[10px] uppercase font-black tracking-widest text-foreground/30 mb-0.5">Confirmed At</p>
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-foreground/60">
+                        <Clock className="w-3 h-3" />
+                        {new Date(tx.buyer_confirmed_at).toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
             {sales.length === 0 && (

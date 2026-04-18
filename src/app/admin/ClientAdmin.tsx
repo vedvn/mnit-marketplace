@@ -602,6 +602,16 @@ export default function ClientAdmin() {
                                       </p>
                                     )}
 
+                                    {tx.buyer_confirmed_at && (
+                                      <div className="flex flex-col gap-1 p-3 rounded-xl bg-foreground/5 border border-black/5">
+                                        <p className="text-[10px] uppercase font-black tracking-widest text-foreground/30">Buyer Confirmed Transaction</p>
+                                        <div className="flex items-center gap-2 text-xs font-bold text-foreground/70">
+                                          <Clock className="w-3.5 h-3.5" />
+                                          {new Date(tx.buyer_confirmed_at).toLocaleString()}
+                                        </div>
+                                      </div>
+                                    )}
+
                                     {tx.payout_status === 'COMPLETED' && (
                                       <div className="flex items-center justify-center gap-2 py-3 px-4 bg-emerald-500/10 text-emerald-700 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-emerald-500/20">
                                         <CheckCircle2 className="w-4 h-4" /> Payout Finished

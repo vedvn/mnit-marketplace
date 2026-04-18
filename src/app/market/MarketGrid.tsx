@@ -163,11 +163,23 @@ export default function MarketGrid({ initialProducts, categories }: { initialPro
 
               {/* Content */}
               <div className="p-6 flex flex-col flex-1">
-                <div className="flex justify-between items-start gap-4 mb-3">
-                  <h3 className="font-bold text-xl leading-tight line-clamp-1 display-title group-hover:text-primary-600 transition-colors">{product.title}</h3>
-                  <div className="flex items-center text-primary-600 font-bold shrink-0 text-xl">
-                    <IndianRupee className="w-5 h-5" />
-                    <span>{product.price}</span>
+                <div className="flex flex-col gap-1 mb-3">
+                  <h3 className="font-bold text-lg leading-tight line-clamp-1 display-title group-hover:text-primary-600 transition-colors">{product.title}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center text-primary-600 font-black text-xl">
+                      <IndianRupee className="w-4 h-4 mr-0.5" />
+                      <span>{product.price}</span>
+                    </div>
+                    {product.original_price && product.original_price > product.price && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-foreground/30 line-through decoration-foreground/20 font-bold">
+                          ₹{product.original_price}
+                        </span>
+                        <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 font-black text-[9px] uppercase tracking-widest rounded-md border border-emerald-500/20">
+                          {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

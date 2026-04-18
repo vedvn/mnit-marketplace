@@ -1,4 +1,9 @@
-import { ShieldBan, Clock, AlertTriangle } from 'lucide-react';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Account Restricted',
+  description: 'Notice of account suspension on MNIT Marketplace due to a violation of campus-exclusive trading policies.',
+};
 import { signOut } from '@/lib/auth-actions';
 import { createClient } from '@/lib/supabase/server';
 import BanTimer from '@/components/BanTimer';

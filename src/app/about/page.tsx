@@ -18,8 +18,8 @@ export default function AboutPage() {
       <div className="text-center mb-12 animate-fade-in-up">
         <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">How It Works</h1>
         <p className="text-lg text-foreground/70 max-w-xl mx-auto">
-          MNIT Marketplace is a secure, escrow-based campus marketplace. 
-          Discover how we protect both buyers and sellers from scams.
+          MNIT Marketplace is a secure, independent student-run marketplace. 
+          Discover how our administration team protects the community via strict verification and enforcement.
         </p>
       </div>
 
@@ -64,9 +64,9 @@ export default function AboutPage() {
             <StepCard 
               number={2}
               icon={<ShieldCheck className="w-6 h-6 text-primary-500" />}
-              title="Secure Escrow Payment"
+              title="Verified Payment Protection"
               color="primary"
-              description="No awkward haggling or cash transactions. Pay instantly via Razorpay. Your funds are held securely in escrow by the platform—we DO NOT send it to the seller yet."
+              description="No awkward haggling or cash transactions. Pay instantly via Razorpay. Your funds are processed securely by the platform—we verify the transfer before the seller receives them."
             />
             <StepCard 
               number={3}
@@ -80,7 +80,7 @@ export default function AboutPage() {
               icon={<CheckCircle2 className="w-6 h-6 text-primary-500" />}
               title="Confirm Receipt"
               color="primary"
-              description="Log into your Profile and click 'Confirm Received'. This final action officially releases the escrow funds to the seller. You're protected if the item is fake or never handed over!"
+              description="Log into your Profile and click 'Confirm Received'. This final action officially completes the transaction. You're protected if the item is fake or never handed over!"
             />
             
             <div className="pt-8 text-center">
@@ -118,9 +118,9 @@ export default function AboutPage() {
             <StepCard 
               number={4}
               icon={<IndianRupee className="w-6 h-6 text-emerald-500" />}
-              title="Get Paid Automatically"
+              title="Receive Your Earnings"
               color="emerald"
-              description="Once the buyer clicks 'Confirm Received' on their dashboard, the escrow lock is released. The payout is automatically scheduled and routed to your bank account."
+              description="Once the buyer clicks 'Confirm Received' on their dashboard, the transaction is finalized. The payout is then processed and routed to your bank account."
             />
 
             <div className="pt-8 text-center">

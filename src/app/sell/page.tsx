@@ -3,9 +3,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getCategories, createProduct } from '@/lib/market-actions';
-import { Loader2, ImagePlus, X, AlertCircle, Camera, QrCode } from 'lucide-react';
+import { Loader2, ImagePlus, X, AlertCircle, Camera, QrCode, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import QRCode from 'react-qr-code';
+
+
+import { CAMPUS_SAFE_ZONES, isWithinSafetyWindow } from '@/lib/constants/locations';
+
 
 export default function SellPage() {
   const router = useRouter();
@@ -17,6 +21,7 @@ export default function SellPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [originalPrice, setOriginalPrice] = useState<string>('');
   
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -25,7 +30,7 @@ export default function SellPage() {
   const [livePreview, setLivePreview] = useState<string | null>(null);
 
   // Cross Device State
-  const [isMobile, setIsMobile] = useState(true); // default to true to avoid hydration mismatch flashes
+  const [isMobile, setIsMobile] = useState(true); 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
@@ -48,6 +53,7 @@ export default function SellPage() {
     }
   }, []);
 
+  // ... (Polling and Desktop Session logic omitted for brevity, keeping it identical)
   useEffect(() => {
     let pollInterval: NodeJS.Timeout;
     if (polling && sessionId) {
@@ -64,7 +70,7 @@ export default function SellPage() {
         } catch (e) {
           console.error('Polling error', e);
         }
-      }, 3000); // 3 seconds
+      }, 3000); 
     }
     return () => clearInterval(pollInterval);
   }, [polling, sessionId]);
@@ -107,6 +113,25 @@ export default function SellPage() {
 
   async function handlePreSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setError(null);
+
+    // 1. Compliance Check: Safety Window
+    if (!isWithinSafetyWindow()) {
+      setError("Marketplace safety window closed. Listings and handovers must be scheduled between 7:00 AM and 9:00 PM.");
+      return;
+    }
+
+    // 2. Pricing Logic Check
+    const sellingPrice = parseFloat(price);
+    const originalPriceRaw = (e.target as HTMLFormElement).original_price.value;
+    if (originalPriceRaw) {
+      const originalPrice = parseFloat(originalPriceRaw);
+      if (sellingPrice > originalPrice) {
+        setError("Your selling price cannot be higher than the original market price. Please provide a fair value.");
+        return;
+      }
+    }
+
     if (files.length === 0) {
       setError("Please add at least one public image.");
       return;
@@ -115,7 +140,6 @@ export default function SellPage() {
       setError("Please capture a live verification photo.");
       return;
     }
-    setError(null);
     setShowConfirm(true);
   }
 
@@ -125,48 +149,62 @@ export default function SellPage() {
     const formData = new FormData(formRef.current);
     
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Authentication failed");
+
       const imageUrls: string[] = [];
-      // 1. Upload public images
+      // 1. Upload public images to public bucket
       for (const file of files) {
         const fileExt = file.name.split('.').pop();
-        const fileName = `public_${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+        const fileName = `public_${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, file);
         if (uploadError) throw new Error(`Public Image upload failed`);
         const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
         imageUrls.push(data.publicUrl);
       }
       
-      // 2. Upload private live photo if it's local (Mobile flow)
-      // If it's desktop, livePreview is already a public URL hosted in our bucket
-      let finalLivePhotoUrl = livePreview;
+      // 2. Upload private live photo to PRIVATE bucket (Compliance Section 03)
+      // Note: If from mobile flow (livePhoto exists), upload it now.
+      // If from desktop flow (livePreview is already a URL from the API), we'll keep that.
+      let finalLivePhotoPath = livePreview;
       if (livePhoto) {
         const liveExt = livePhoto.name.split('.').pop();
-        const liveName = `private_live_${Math.random().toString(36).substring(2)}_${Date.now()}.${liveExt}`;
-        const { error: liveUploadErr } = await supabase.storage.from('product-images').upload(liveName, livePhoto);
-        if (liveUploadErr) throw new Error(`Live photo upload failed`);
-        const { data: liveData } = supabase.storage.from('product-images').getPublicUrl(liveName);
-        finalLivePhotoUrl = liveData.publicUrl;
+        // Route to the private bucket and include userId in path for RLS protection
+        const privateFileName = `${user.id}/${Math.random().toString(36).substring(2)}_${Date.now()}.${liveExt}`;
+        const { error: liveUploadErr } = await supabase.storage.from('verification-photos').upload(privateFileName, livePhoto);
+        if (liveUploadErr) throw new Error(`Private Verification upload failed`);
+        finalLivePhotoPath = privateFileName; // We store the PATH for private files, not public URL
+      } else if (livePreview && livePreview.includes('verification-photos')) {
+         // If it's already in the bucket (e.g. from desktop-to-mobile proxy), extract the path
+         const urlParts = livePreview.split('verification-photos/');
+         if (urlParts.length > 1) finalLivePhotoPath = urlParts[1];
       }
       
       // 3. Submit Product
-      const result = await createProduct(formData, imageUrls, finalLivePhotoUrl!);
+      const result = await createProduct(formData, imageUrls, finalLivePhotoPath!);
       
       if (result.error) throw new Error(result.error);
       router.push('/profile');
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
+      setShowConfirm(false);
     }
   }
 
   return (
     <div className="min-h-screen pt-24 pb-12 px-6 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold tracking-tight mb-2">Sell an Item</h1>
-      <p className="text-foreground/60 mb-8">List your item securely. Items will be reviewed by admin first.</p>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Sell an Item</h1>
+        <p className="text-foreground/60">Professional review is active. All listings must follow campus safety protocols.</p>
+        <div className="mt-4 p-3 rounded-xl bg-primary-500/5 border border-primary-500/10 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary-600">
+           <Clock className="w-3.5 h-3.5"/> Safety Window Active: 07:00 AM — 09:00 PM IST
+        </div>
+      </div>
 
       <form ref={formRef} onSubmit={handlePreSubmit} className="glass-card p-8 rounded-3xl space-y-8 border border-black/5 shadow-xl">
         {error && (
-          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex items-start gap-3">
+          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex items-start gap-3 animate-in slide-in-from-top-4">
             <AlertCircle className="w-5 h-5 shrink-0" />
             <span>{error}</span>
           </div>
@@ -175,88 +213,98 @@ export default function SellPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2 md:col-span-2">
             <label className="text-sm font-medium ml-1">Title</label>
-            <input required type="text" name="title" className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none" />
+            <input required type="text" name="title" placeholder="e.g. Physics Textbook, Hero Bicycle..." className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none" />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">Original Price (₹) <span className="text-foreground/40 font-normal">(Optional)</span></label>
-            <input type="number" name="original_price" className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none" />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">Current Selling Price (₹)</label>
-            <input 
-              required 
-              type="number" 
-              name="price" 
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none" 
-            />
-            {price && Number(price) > 0 && (
-              <div className="mt-2 p-3 rounded-xl bg-primary-500/5 border border-primary-500/10 flex flex-col gap-1">
-                <div className="flex justify-between text-[11px] uppercase tracking-wider font-bold text-foreground/40">
-                  <span>Platform Fee ({feePercent}%)</span>
-                  <span>- ₹{(Number(price) * feePercent / 100).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm font-bold text-primary-600">
-                  <span>You will receive</span>
-                  <span>₹{(Number(price) * (100 - feePercent) / 100).toFixed(2)}</span>
-                </div>
-              </div>
-            )}
+            <label className="text-sm font-medium ml-1">Condition</label>
+            <select required name="condition" className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none appearance-none cursor-pointer">
+              <option value="NEW">New / Boxed</option>
+              <option value="LIKE_NEW">Like New</option>
+              <option value="GOOD">Good / Used</option>
+              <option value="FAIR">Fair / Functional</option>
+            </select>
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-medium ml-1">Category</label>
-            <select required name="category_id" className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none">
+            <select required name="category_id" className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none appearance-none cursor-pointer">
               <option value="">Select Category</option>
               {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">Condition</label>
-            <select required name="condition" className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none">
-              <option value="NEW">New</option><option value="LIKE_NEW">Like New</option>
-              <option value="GOOD">Good</option><option value="FAIR">Fair</option>
-            </select>
+            <label className="text-sm font-medium ml-1">Original Price (MRP) ₹</label>
+            <input 
+              type="number" 
+              name="original_price" 
+              value={originalPrice}
+              onChange={(e) => setOriginalPrice(e.target.value)}
+              placeholder="e.g. 1500"
+              className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none" 
+            />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">Pickup Location</label>
-            <select required name="pickup_address" className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none">
-              <option value="">Select Pickup Location</option>
-              <option value="VLTC Front Porch">VLTC Front Porch</option>
-              <option value="VLTC Backporch">VLTC Backporch</option>
-              <option value="PMC">PMC</option>
-              <option value="Vinodini Hostel Gate">Vinodini Hostel Gate</option>
-              <option value="Gargi Hostel Gate">Gargi Hostel Gate</option>
-              <option value="Hostel Office">Hostel Office</option>
+            <label className="text-sm ml-1 text-primary-600 font-bold">Your Selling Price ₹</label>
+            <input 
+              required 
+              type="number" 
+              name="price" 
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="e.g. 800"
+              className={`w-full px-4 py-3 rounded-xl bg-foreground/5 border focus:border-primary-500 outline-none shadow-sm transition-all ${
+                originalPrice && parseFloat(price) > parseFloat(originalPrice) ? 'border-red-500/50 bg-red-500/5' : 'border-black/20'
+              }`} 
+            />
+            {originalPrice && parseFloat(price) > parseFloat(originalPrice) ? (
+              <p className="text-[10px] text-red-500 font-bold animate-pulse ml-1">
+                Warning: Selling price should be less than or equal to Original Price (MRP).
+              </p>
+            ) : (
+              <p className="text-[10px] text-foreground/40 ml-1">Showing a higher original price (MRP) can help you sell faster!</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium ml-1">Campus Safe-Handover Zone</label>
+            <select required name="pickup_address" className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none appearance-none cursor-pointer">
+              <option value="">Choose a location...</option>
+              {CAMPUS_SAFE_ZONES.map(zone => (
+                <option key={zone.id} value={zone.id}>{zone.name}</option>
+              ))}
             </select>
           </div>
 
           <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-medium ml-1">Description</label>
-            <textarea required name="description" rows={3} className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none resize-none" />
+            <label className="text-sm font-medium ml-1">Product Description</label>
+            <textarea 
+              required 
+              name="description" 
+              rows={3} 
+              placeholder="Provide key details about the item's state, history, and usage..."
+              className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 focus:border-primary-500 outline-none resize-none leading-relaxed" 
+            />
           </div>
 
           <div className="space-y-2 md:col-span-2 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-            <div className="flex items-center gap-2 mb-2 text-amber-500">
+            <div className="flex items-center gap-2 mb-2 text-amber-600">
                <Camera className="w-5 h-5"/>
-               <h3 className="font-bold">Live Verification Photo</h3>
+               <h3 className="font-bold">Live Identity Verification</h3>
             </div>
-            <p className="text-xs text-amber-500/80 mb-4">
-              Take a live photo of the item right now to prove ownership. This photo is completely private and only seen by the verifier.
+            <p className="text-[11px] text-amber-700 leading-relaxed mb-4">
+              <strong>REQUIRED:</strong> Take a photo of the item in its current environment. This identifies you as the genuine owner. This image is <strong>encrypted & private</strong>, visible only to authorized employee moderators.
             </p>
             <div className="flex gap-4 items-center">
               {livePreview ? (
-                 <div className="relative w-32 h-32 rounded-xl overflow-hidden glass border border-amber-500/30 shrink-0">
+                 <div className="relative w-32 h-32 rounded-xl overflow-hidden glass border-2 border-amber-500/30 shrink-0">
                    <img src={livePreview} className="w-full h-full object-cover" />
                    <button type="button" onClick={() => {setLivePhoto(null); setLivePreview(null); if(!isMobile) initDesktopSession();}} className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full"><X className="w-3 h-3"/></button>
                  </div>
               ) : isMobile ? (
-                 <label className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 text-white font-semibold cursor-pointer hover:bg-amber-600 transition-colors">
+                 <label className="flex items-center gap-3 px-6 py-4 rounded-xl bg-amber-500 text-white font-bold text-xs uppercase tracking-widest cursor-pointer hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20">
                    <Camera className="w-5 h-5" /> Take verification photo
                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleLivePhotoChange} />
                  </label>
@@ -266,13 +314,10 @@ export default function SellPage() {
                      <QRCode value={qrUrl} size={100} />
                    </div>
                    <div className="space-y-2">
-                     <h4 className="font-bold text-sm flex items-center gap-2"><QrCode className="w-4 h-4 text-amber-500"/> Scan with your phone</h4>
+                     <h4 className="font-bold text-sm flex items-center gap-2"><QrCode className="w-4 h-4 text-amber-500"/> Scan with Mobile Camera</h4>
                      <p className="text-xs text-foreground/60 leading-relaxed">
-                       You are on a desktop device. Scan this code with your phone camera to securely connect and take the verification picture.
+                       Scan this code with your phone to securely connect and take the verification picture.
                      </p>
-                     <div className="flex items-center gap-2 text-[10px] text-amber-500/80 font-bold uppercase tracking-widest mt-2">
-                       <Loader2 className="w-3 h-3 animate-spin"/> Waiting for photo...
-                     </div>
                    </div>
                  </div>
               ) : (
@@ -306,7 +351,7 @@ export default function SellPage() {
                <input required type="checkbox" className="mt-1 w-5 h-5 rounded border-black/20 text-primary-600 focus:ring-primary-500 bg-background" />
                <span className="text-sm text-foreground/80 leading-relaxed">
                  <strong className="text-red-500 block mb-1">Mandatory Terms &amp; Rules</strong>
-                 I agree to the <a href="/terms" target="_blank" className="text-primary-600 underline font-bold hover:text-primary-900">handover and escrow rules</a>. I understand that any fraudulent behavior, failing to bring the item after payment, or selling broken items will result in a <strong>permanent ban</strong> from MNIT Marketplace without appeal.
+                 I agree to the <a href="/terms" target="_blank" className="text-primary-600 underline font-bold hover:text-primary-900">handover and platform safety rules</a>. I understand that any fraudulent behavior, failing to bring the item after payment, or selling broken items will result in a <strong>permanent ban</strong> from MNIT Marketplace without appeal.
                </span>
             </label>
           </div>
