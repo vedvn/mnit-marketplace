@@ -2,9 +2,11 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { MapPin, IndianRupee, Tag, Clock, ShieldCheck, Search, SlidersHorizontal } from 'lucide-react';
+import { MapPin, IndianRupee, Tag, Clock, ShieldCheck, Search, SlidersHorizontal, ShoppingCart } from 'lucide-react';
+import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
+import CheckoutButton from './[id]/CheckoutButton';
 
-export default function MarketGrid({ initialProducts, categories }: { initialProducts: any[], categories: any[] }) {
+export default function MarketGrid({ initialProducts, categories, isLoggedIn, currentUserId }: { initialProducts: any[], categories: any[], isLoggedIn: boolean, currentUserId?: string }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [conditionFilter, setConditionFilter] = useState('');
@@ -185,22 +187,45 @@ export default function MarketGrid({ initialProducts, categories }: { initialPro
 
                 <div className="flex items-center text-[10px] font-bold uppercase tracking-wider text-foreground/50 mb-6 truncate">
                   <MapPin className="w-3.5 h-3.5 mr-1.5" />
-                  <span>{product.pickup_address}</span>
+                  <span>
+                    {CAMPUS_SAFE_ZONES.find(z => z.id === product.pickup_address.toLowerCase())?.name || product.pickup_address.replace('_', ' ')}
+                  </span>
                 </div>
 
-                <div className="mt-auto pt-4 border-t border-black/5 flex items-center justify-between">
+              <div className="mt-auto pt-4 border-t border-black/5 flex flex-col gap-4">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary-600">
                     <ShieldCheck className="w-3.5 h-3.5" />
                     Verified MNIT Student
                   </div>
-                  <div className="flex items-center mono-subtitle text-foreground/40">
+                  <div className="flex items-center mono-subtitle text-foreground/40 text-[9px]">
                     <Clock className="w-3.5 h-3.5 mr-1" />
-                    {new Date(product.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    {new Date(product.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
                   </div>
                 </div>
+
+                {/* Direct Buy Action */}
+                <div onClick={(e) => e.preventDefault()} className="w-full">
+                  {product.status === 'AVAILABLE' && (
+                    product.seller_id === currentUserId ? (
+                      <div className="w-full py-3 text-[10px] font-bold uppercase tracking-widest text-foreground/40 text-center bg-foreground/5 rounded-lg border border-black/5">
+                        Your Listing
+                      </div>
+                    ) : (
+                      <CheckoutButton 
+                        productId={product.id}
+                        price={product.price}
+                        isLoggedIn={isLoggedIn} 
+                        productTitle={product.title}
+                        variant="compact"
+                      />
+                    )
+                  )}
+                </div>
               </div>
-            </Link>
-          ))}
+            </div>
+          </Link>
+        ))}
         </div>
       )}
     </div>

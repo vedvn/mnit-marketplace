@@ -3,6 +3,7 @@ import { Metadata } from 'next';
 import { redirect, notFound } from 'next/navigation';
 import { CheckCircle2, Phone, MapPin, IndianRupee, PackageCheck, UserCircle2, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
 
 export const metadata: Metadata = {
   title: 'Order Details',
@@ -66,7 +67,7 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
           <div className="flex-1 min-w-0">
             <h2 className="font-bold text-xl display-title uppercase mb-1 line-clamp-1">{product?.title}</h2>
             <div className="flex items-center gap-1 text-xs text-foreground/50 font-bold uppercase tracking-widest">
-              <MapPin className="w-3 h-3" /> {product?.pickup_address}
+              <MapPin className="w-3 h-3" /> {CAMPUS_SAFE_ZONES.find(z => z.id === product?.pickup_address?.toLowerCase())?.name || product?.pickup_address?.replace('_', ' ')}
             </div>
           </div>
         </div>

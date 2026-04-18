@@ -1,5 +1,6 @@
 import { getProducts, getCategories } from '@/lib/market-actions';
 import { Metadata } from 'next';
+import { createClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = {
   title: 'Browse Marketplace',
@@ -11,6 +12,10 @@ import MarketGrid from './MarketGrid';
 export default async function MarketPage() {
   const products = await getProducts();
   const categories = await getCategories();
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const isLoggedIn = !!user;
 
   return (
     <div className="min-h-screen pt-24 pb-12 px-6 max-w-7xl mx-auto">
@@ -27,7 +32,7 @@ export default async function MarketPage() {
         </Link>
       </div>
 
-      <MarketGrid initialProducts={products} categories={categories} />
+      <MarketGrid initialProducts={products} categories={categories} isLoggedIn={isLoggedIn} currentUserId={user?.id} />
     </div>
   );
 }

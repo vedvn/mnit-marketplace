@@ -13,8 +13,10 @@ import {
   ShieldCheck,
   ShoppingBag,
   Clock,
-  User
+  User,
+  MapPin
 } from 'lucide-react';
+import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
 
 export default function ClientEmployee() {
   const [products, setProducts] = useState<any[]>([]);
@@ -165,7 +167,7 @@ export default function ClientEmployee() {
                       <div>
                         <span className="block text-foreground/50 text-[10px] font-bold mb-1 uppercase tracking-wider">Details</span>
                         <p><span className="text-foreground/40">Condition:</span> {product.condition}</p>
-                        <p><span className="text-foreground/40">Pickup:</span> {product.pickup_address}</p>
+                        <p><span className="text-foreground/40 font-bold uppercase tracking-widest text-[10px]">Pickup:</span> {CAMPUS_SAFE_ZONES.find(z => z.id === product.pickup_address.toLowerCase())?.name || product.pickup_address.replace('_', ' ')}</p>
                       </div>
                     </div>
 

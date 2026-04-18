@@ -13,9 +13,10 @@ interface Props {
   isLoggedIn: boolean;
   productTitle: string;
   isBuyingDisabled?: boolean;
+  variant?: 'compact' | 'full';
 }
 
-export default function CheckoutButton({ productId, price, isLoggedIn, productTitle, isBuyingDisabled }: Props) {
+export default function CheckoutButton({ productId, price, isLoggedIn, productTitle, isBuyingDisabled, variant = 'full' }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -199,10 +200,12 @@ export default function CheckoutButton({ productId, price, isLoggedIn, productTi
           <button
             onClick={() => { setError(null); setShowModal(true); setLoading(false); }}
             disabled={loading}
-            className="w-full h-16 flex items-center justify-center gap-3 bg-primary-600 text-white font-bold text-sm uppercase tracking-widest hover:bg-primary-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`w-full flex items-center justify-center gap-3 bg-primary-600 text-white font-bold uppercase tracking-widest hover:bg-primary-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              variant === 'compact' ? 'py-3 text-[10px] rounded-lg' : 'h-16 text-sm'
+            }`}
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-              <>Buy Now — ₹{price}</>
+            {loading ? <Loader2 className={`animate-spin ${variant === 'compact' ? 'w-3.5 h-3.5' : 'w-5 h-5'}`} /> : (
+              <>Buy Now {variant !== 'compact' && `— ₹${price}`}</>
             )}
           </button>
         )}

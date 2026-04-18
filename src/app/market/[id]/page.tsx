@@ -4,6 +4,8 @@ import { Tag, MapPin, Clock, IndianRupee, ShieldCheck } from 'lucide-react';
 import CheckoutButton from './CheckoutButton';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
+import ProductCarousel from './ProductCarousel';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Metadata, ResolvingMetadata } from 'next';
 
@@ -20,7 +22,8 @@ export async function generateMetadata(
     };
   }
 
-  const description = `${product.title} - ₹${product.price} | ${product.condition.replace('_', ' ')} condition. Available for pickup at ${product.pickup_address} on MNIT campus.`;
+  const locationName = CAMPUS_SAFE_ZONES.find(z => z.id === product.pickup_address.toLowerCase())?.name || product.pickup_address.replace('_', ' ');
+  const description = `${product.title} - ₹${product.price} | ${product.condition.replace('_', ' ')} condition. Available for pickup at ${locationName} on MNIT campus.`;
 
   return {
     title: product.title,
@@ -62,30 +65,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       </Link>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-0 sm:bento-border border-y border-black/5 sm:border-y-0">
-        {/* Images Column */}
-        <div className="flex flex-col bento-border-b md:bento-border-b-0 md:bento-border-r">
-          <div className="aspect-square w-full relative bg-foreground/5 bento-border-b">
-            {product.images?.[0] ? (
-              <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-foreground/30">
-                <Tag className="w-16 h-16 mb-4" />
-                <span className="mono-subtitle">No primary image</span>
-              </div>
-            )}
-            <div className="absolute top-4 left-4 px-3 py-1 bg-white text-foreground text-xs font-bold uppercase tracking-widest bento-border">
-              {product.condition.replace('_', ' ')}
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-0">
-            {product.images?.slice(1, 3).map((img: string, i: number) => (
-              <div key={i} className={`aspect-square bg-foreground/5 ${i === 0 ? 'bento-border-r' : ''}`}>
-                <img src={img} className="w-full h-full object-cover" />
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* Images Column — Now a High-Fidelity Client Carousel */}
+        <ProductCarousel 
+          images={product.images || []} 
+          title={product.title} 
+          condition={product.condition} 
+        />
 
         {/* Info Column */}
         <div className="flex flex-col bg-white">
@@ -125,13 +110,15 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
              <div className="p-3 sm:p-6 flex flex-col items-center justify-center text-center bento-border-r">
                <MapPin className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2 text-foreground/50" />
                <span className="mono-subtitle mb-1 hidden sm:block">Pickup at</span>
-               <span className="font-bold text-foreground text-[10px] sm:text-sm uppercase tracking-wide line-clamp-1">{product.pickup_address}</span>
+               <span className="font-bold text-foreground text-[10px] sm:text-sm uppercase tracking-wide line-clamp-1">
+                 {CAMPUS_SAFE_ZONES.find(z => z.id === product.pickup_address.toLowerCase())?.name || product.pickup_address.replace('_', ' ')}
+               </span>
              </div>
              <div className="p-3 sm:p-6 flex flex-col items-center justify-center text-center">
                <Clock className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2 text-foreground/50" />
                <span className="mono-subtitle mb-1 hidden sm:block">Listed on</span>
                <span className="font-bold text-foreground text-[10px] sm:text-sm uppercase tracking-wide whitespace-nowrap">
-                 {new Date(product.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                 {new Date(product.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                </span>
              </div>
           </div>
