@@ -2,8 +2,9 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Tag, Plus, ShoppingBag, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Tag, Plus, ShoppingBag, ShieldCheck, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { confirmReceipt } from '@/lib/profile-actions';
+import DisputeForm from '@/components/DisputeForm';
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -114,6 +115,14 @@ export default async function ProfilePage() {
                       </form>
                     )}
                   </div>
+                  
+                  {p.status === 'SOLD' && p.sale_tx?.[0] && (
+                    <DisputeForm 
+                      transactionId={p.sale_tx[0].id} 
+                      productId={p.id}
+                      productTitle={p.title}
+                    />
+                  )}
                 </div>
               </div>
             ))}
@@ -157,6 +166,12 @@ export default async function ProfilePage() {
                       <CheckCircle2 className="w-3 h-3" /> Completed
                     </div>
                   )}
+                  {/* Buyer Dispute Option */}
+                  <DisputeForm 
+                    transactionId={tx.id} 
+                    productId={tx.product_id}
+                    productTitle={tx.product?.title || 'Unknown Item'} 
+                  />
                 </div>
               </div>
             ))}

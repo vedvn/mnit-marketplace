@@ -132,3 +132,66 @@ export async function signOut() {
   await supabase.auth.signOut();
   redirect('/login');
 }
+
+// ─── PASSWORD RESET (6-Digit OTP) ─────────────────────────────────────────────
+export async function requestResetOTP(formData: FormData) {
+  const email = formData.get('email') as string;
+
+  if (!email || !email.endsWith('@mnit.ac.in')) {
+    return { error: 'Please use your valid @mnit.ac.in student email.' };
+  }
+
+  const supabase = await createClient();
+
+  // Supabase resetPasswordForEmail sends an OTP if configured, or a link.
+  // We specify the flow to ensure recovery type is triggered.
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { success: true, email };
+}
+
+export async function verifyRecoveryOTP(formData: FormData) {
+  const email = formData.get('email') as string;
+  const token = formData.get('token') as string;
+
+  if (!email || !token) {
+    return { error: 'Email and OTP code are required.' };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: 'recovery'
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  // Once verified, the user is logged in with a recovery session.
+  // We redirect them to the actual reset page.
+  return { success: true };
+}
+
+export async function updateUserPassword(formData: FormData) {
+  const password = formData.get('password') as string;
+
+  if (!password || password.length < 8) {
+    return { error: 'Password must be at least 8 characters long.' };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { success: true };
+}

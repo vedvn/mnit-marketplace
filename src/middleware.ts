@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { triggerWelcomeEmail, triggerAccountUnbannedEmail } from './lib/email-service'
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -46,31 +47,34 @@ export async function middleware(request: NextRequest) {
   if (user && path !== '/banned') {
     const { data: profile } = await supabase
       .from('users')
-      .select('is_banned, welcome_email_sent, phone_number')
+      .select('name, is_banned, banned_until, welcome_email_sent, phone_number')
       .eq('id', user.id)
       .single();
     
     // 1. Banned check
     if (profile?.is_banned) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/banned';
-      return NextResponse.redirect(url);
+      // Automatic Unban Logic
+      if (profile.banned_until && new Date(profile.banned_until) < new Date()) {
+        await supabase
+          .from('users')
+          .update({ is_banned: false, banned_until: null })
+          .eq('id', user.id);
+        
+        // Trigger Unban Email (Fire and forget from Middleware)
+        triggerAccountUnbannedEmail(user.email!, profile.name).catch(console.error);
+        
+        // Return without redirecting to /banned
+      } else {
+        const url = request.nextUrl.clone();
+        url.pathname = '/banned';
+        return NextResponse.redirect(url);
+      }
     }
 
     // 2. Welcome email (fire once, on first login)
     if (profile && profile.welcome_email_sent === false) {
       await supabase.from('users').update({ welcome_email_sent: true }).eq('id', user.id);
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email/welcome`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-internal-secret': process.env.INTERNAL_API_SECRET || '',
-        },
-        body: JSON.stringify({
-          email: user.email,
-          name: user.user_metadata?.full_name || 'User',
-        }),
-      }).catch(console.error);
+      triggerWelcomeEmail(user.email!, user.user_metadata?.full_name || 'User').catch(console.error);
     }
 
     // 3. Profile completion gate — redirect to /complete-profile if phone is missing

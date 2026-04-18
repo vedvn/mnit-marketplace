@@ -13,22 +13,30 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, react }: SendEmailParams) {
   try {
+    const fromAddress = 'MNIT Marketplace <onboarding@resend.dev>';
     const { data, error } = await resend.emails.send({
-      from: 'MNIT Marketplace <onboarding@resend.dev>', // Verified domain or resend default for testing
+      from: fromAddress,
       to,
       subject,
       replyTo: 'mnitmarketplace@gmail.com',
-      react, // Pass the React element directly for compilation
+      react,
     });
 
     if (error) {
-      console.error('[Resend Helper] Error sending email:', error);
+      console.error(`[Resend] FAILED to send email to ${to}:`, error);
+      
+      // Check for common onboarding error
+      if (error.name === 'validation_error' || error.message?.includes('onboarding')) {
+        console.warn('⚠️  [Resend Warning] You are likely in Onboarding mode. You can ONLY send emails to the email address associated with your Resend account (the owner/developer email). To send to all users, you must verify a custom domain in the Resend dashboard.');
+      }
+      
       return { success: false, error };
     }
 
+    console.log(`[Resend] SUCCESS: Sent "${subject}" to ${to}`);
     return { success: true, data };
   } catch (err) {
-    console.error('[Resend Helper] Unexpected error:', err);
+    console.error('[Resend] Unexpected Error:', err);
     return { success: false, error: err };
   }
 }

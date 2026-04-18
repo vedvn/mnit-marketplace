@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
+import { encrypt } from './utils/encryption';
 
 export async function confirmReceipt(transactionId: string, productId: string) {
   const supabase = await createClient();
@@ -74,6 +75,51 @@ export async function markProductSold(productId: string) {
     .eq('seller_id', user.id);
 
   if (error) return { error: error.message };
+
+  revalidatePath('/profile');
+  return { success: true };
+}
+
+export async function raiseDispute(transactionId: string, productId: string, reason: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+
+  if (!reason || reason.length < 10) {
+    return { error: 'Please provide a detailed reason (at least 10 characters).' };
+  }
+
+  const adminSupabase = createAdminClient();
+
+  // 1. Verify user is part of the transaction
+  const { data: tx } = await adminSupabase
+    .from('transactions')
+    .select('id, buyer_id, seller_id')
+    .eq('id', transactionId)
+    .single();
+
+  if (!tx || (tx.buyer_id !== user.id && tx.seller_id !== user.id)) {
+    return { error: 'You are not authorized to raise a dispute for this transaction.' };
+  }
+
+  // 2. Encrypt the reason
+  const encryptedReason = encrypt(reason);
+
+  // 3. Insert dispute
+  const { error } = await adminSupabase
+    .from('disputes')
+    .insert({
+      transaction_id: transactionId,
+      product_id: productId,
+      raised_by: user.id,
+      reason: encryptedReason,
+      status: 'OPEN'
+    });
+
+  if (error) {
+    console.error('[Dispute Error]:', error);
+    return { error: 'Failed to raise dispute. Please try again later.' };
+  }
 
   revalidatePath('/profile');
   return { success: true };

@@ -42,27 +42,29 @@ export default async function NavBar() {
           )}
         </nav>
 
-        {/* Auth Buttons & Mobile Menu */}
+        {/* Auth Buttons (Desktop) & Mobile Menu */}
         <div className="flex items-center gap-2">
-          {user ? (
-            <form action={signOut}>
-              <button 
-                type="submit"
-                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-none bg-foreground/5 text-foreground font-bold hover:bg-foreground hover:text-background transition-all text-[10px] sm:text-xs uppercase tracking-widest bento-border"
+          <div className="hidden md:flex items-center gap-2">
+            {user ? (
+              <form action={signOut}>
+                <button 
+                  type="submit"
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-none bg-foreground/5 text-foreground font-bold hover:bg-foreground hover:text-background transition-all text-[10px] sm:text-xs uppercase tracking-widest bento-border"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Logout</span>
+                </button>
+              </form>
+            ) : (
+              <Link 
+                href="/login" 
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-none bg-primary-600 text-white font-bold hover:bg-primary-900 transition-all text-[10px] sm:text-xs uppercase tracking-widest"
               >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
-            </form>
-          ) : (
-            <Link 
-              href="/login" 
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-none bg-primary-600 text-white font-bold hover:bg-primary-900 transition-all text-[10px] sm:text-xs uppercase tracking-widest"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Student Login</span>
-            </Link>
-          )}
+                <LogIn className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Student Login</span>
+              </Link>
+            )}
+          </div>
           
           <MobileNav user={user} dbUser={dbUser} />
         </div>

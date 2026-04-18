@@ -4,8 +4,10 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
+import { decrypt } from './utils/encryption';
+import { triggerAccountBannedEmail, triggerAccountUnbannedEmail, triggerListingDeletedEmail } from './email-service';
 
-// Helper to double-check rights
+// Helper to double-check rights for Admins
 async function verifyAdminClearance() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -20,8 +22,23 @@ async function verifyAdminClearance() {
   return profile?.is_admin === true && isTokenValid;
 }
 
+// Helper for Staff (Admins or Employees)
+async function verifyStaffClearance() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data: profile } = await supabase.from('users').select('is_admin, is_employee').eq('id', user.id).single();
+  if (!profile) return false;
+
+  // token is usually for admin panel entry, but employees might not have it.
+  // We'll trust the DB flag for employees, and token for super admins if needed.
+  // To keep it simple and consistent with current admin flow:
+  return profile.is_admin === true || profile.is_employee === true;
+}
+
 export async function getAdminDashboardData() {
-  const cleared = await verifyAdminClearance();
+  const cleared = await verifyStaffClearance();
   if (!cleared) return { error: 'Unauthorized' };
 
   const supabase = await createClient();
@@ -35,21 +52,27 @@ export async function getAdminDashboardData() {
 
   const sellerIds = Array.from(new Set(rawProducts?.map(p => p.seller_id) || []));
 
-  let sellers = [];
-  if (sellerIds.length > 0) {
-    const { data: sellersData } = await supabase
-      .from('users')
-      .select('*')
-      .in('id', sellerIds);
-    sellers = sellersData || [];
-  }
+  // 1b. Get all Users for segmentation
+  const { data: allUsers } = await adminSupabase.from('users').select('*').order('created_at', { ascending: false });
+
+  // 1c. Get all Products for global oversight
+  const { data: allProducts } = await adminSupabase
+    .from('products')
+    .select('*, seller:users!seller_id(name, email)')
+    .order('created_at', { ascending: false });
+
+  // Flatten nested seller arrays for easier frontend consumption
+  const flattenedProducts = (allProducts || []).map(p => ({
+    ...p,
+    seller: Array.isArray(p.seller) ? p.seller[0] : p.seller
+  }));
 
   // 2. Get financial data (transactions)
   const { data: transactions } = await adminSupabase
     .from('transactions')
     .select(`
       *,
-      product:products(title),
+      product:products(title, category_id, categories:categories(name)),
       buyer:users!buyer_id(name, email, phone_number),
       seller:users!seller_id(name, email, phone_number, bank_account_number, bank_ifsc, upi_id)
     `)
@@ -59,16 +82,24 @@ export async function getAdminDashboardData() {
   const totalAmountCollected = transactions?.reduce((sum, tx) => sum + Number(tx.amount_paid), 0) || 0;
   const totalPlatformFees = transactions?.reduce((sum, tx) => sum + Number(tx.platform_fee), 0) || 0;
 
-  // 4. Current fee setting
+  // 4. Listing Stats by Category
+  const { data: categoryStats } = await adminSupabase
+    .from('products')
+    .select('category_id, status');
+  
+  // 5. Current fee setting
   const { data: settings } = await adminSupabase.from('admin_settings').select('platform_fee_percent').single();
 
-  // 5. Categories
+  // 6. Categories
   const { data: categories } = await adminSupabase.from('categories').select('*').order('name');
 
   return {
     success: true,
-    sellers,
+    sellers: allUsers?.filter(u => sellerIds.includes(u.id)) || [],
+    allUsers: allUsers || [],
+    allProducts: flattenedProducts,
     transactions: transactions || [],
+    categoryStats: categoryStats || [],
     feePercent: settings?.platform_fee_percent ?? 5,
     categories: categories || [],
     totals: {
@@ -76,6 +107,81 @@ export async function getAdminDashboardData() {
       platformFees: totalPlatformFees
     }
   };
+}
+
+export async function adminDeleteProduct(productId: string, reason: string = "Violation of marketplace policy") {
+  const cleared = await verifyAdminClearance();
+  if (!cleared) return { error: 'Unauthorized' };
+
+  const adminSupabase = createAdminClient();
+  
+  // Get seller info before deleting for notification
+  const { data: product } = await adminSupabase
+    .from('products')
+    .select('title, seller:users!seller_id(name, email)')
+    .eq('id', productId)
+    .single();
+
+  if (!product) return { error: 'Product not found' };
+
+  const { error } = await adminSupabase.from('products').delete().eq('id', productId);
+  if (error) return { error: error.message };
+
+  // Notify Seller
+  const seller = Array.isArray(product?.seller) ? product.seller[0] : (product?.seller as any);
+  
+  if (seller?.email) {
+    await triggerListingDeletedEmail(seller.email, seller.name, product.title, reason);
+  }
+
+  revalidatePath('/admin');
+  return { success: true };
+}
+
+export async function getDisputeData() {
+  const cleared = await verifyStaffClearance();
+  if (!cleared) return { error: 'Unauthorized' };
+
+  const adminSupabase = createAdminClient();
+  const { data: disputes } = await adminSupabase
+    .from('disputes')
+    .select(`
+      *,
+      transaction:transactions(*),
+      product:products(title, price),
+      raised_by_user:users!raised_by(name, email)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (!disputes) return [];
+
+  // Decrypt reasons for staff
+  const decryptedDisputes = disputes.map(d => ({
+    ...d,
+    reason: decrypt(d.reason)
+  }));
+
+  return decryptedDisputes;
+}
+
+export async function adminResolveDispute(disputeId: string, status: 'RESOLVED' | 'REJECTED', resolution: string) {
+  const cleared = await verifyStaffClearance();
+  if (!cleared) return { error: 'Unauthorized' };
+
+  const adminSupabase = createAdminClient();
+  const { error } = await adminSupabase
+    .from('disputes')
+    .update({ 
+      status, 
+      resolution,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', disputeId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  return { success: true };
 }
 
 export async function adminCreateCategory(name: string) {
@@ -106,7 +212,7 @@ export async function adminBanUser(userId: string, durationDays: number | null, 
   const cleared = await verifyAdminClearance();
   if (!cleared) return { error: 'Unauthorized' };
 
-  const supabase = await createClient();
+  const adminSupabase = createAdminClient();
   
   let bannedUntil = null;
   if (durationDays !== null) {
@@ -115,7 +221,7 @@ export async function adminBanUser(userId: string, durationDays: number | null, 
     bannedUntil = date.toISOString();
   }
 
-  const { error } = await supabase
+  const { error: banError } = await adminSupabase
     .from('users')
     .update({ 
       is_banned: true,
@@ -123,24 +229,26 @@ export async function adminBanUser(userId: string, durationDays: number | null, 
     })
     .eq('id', userId);
     
-  if (error) return { error: error.message };
+  if (banError) {
+    console.error('[AdminBan] Error updating user:', banError);
+    return { error: banError.message };
+  }
 
-  await supabase.from('products').update({ status: 'REMOVED' }).eq('seller_id', userId).eq('status', 'AVAILABLE');
+  // 1. Permanently delete all AVAILABLE products
+  await adminSupabase.from('products').delete().eq('seller_id', userId).eq('status', 'AVAILABLE');
 
-  const { data: user } = await supabase.from('users').select('email, name').eq('id', userId).single();
+  // 2. Clear out any pending transactions where this user is buyer or seller
+  await adminSupabase.from('transactions').delete().eq('buyer_id', userId).eq('payment_status', 'PENDING');
+  await adminSupabase.from('transactions').delete().eq('seller_id', userId).eq('payment_status', 'PENDING');
+
+  const { data: user } = await adminSupabase.from('users').select('email, name').eq('id', userId).single();
   if (user?.email) {
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email/account-banned`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-internal-secret': process.env.INTERNAL_API_SECRET || '',
-      },
-      body: JSON.stringify({
-        email: user.email,
-        name: user.name,
-        reason: durationDays === null ? `Permanent Ban: ${reason}` : `Temporary Ban (${durationDays} days): ${reason}`,
-      }),
-    }).catch(console.error);
+    await triggerAccountBannedEmail(
+      user.email, 
+      user.name, 
+      durationDays === null ? `Permanent Ban: ${reason}` : `Temporary Ban (${durationDays} days): ${reason}`,
+      bannedUntil
+    );
   }
 
   revalidatePath('/admin');
@@ -151,9 +259,9 @@ export async function adminUnbanUser(userId: string) {
   const cleared = await verifyAdminClearance();
   if (!cleared) return { error: 'Unauthorized' };
 
-  const supabase = await createClient();
+  const adminSupabase = createAdminClient();
 
-  const { error } = await supabase
+  const { error } = await adminSupabase
     .from('users')
     .update({ 
       is_banned: false,
@@ -162,6 +270,12 @@ export async function adminUnbanUser(userId: string) {
     .eq('id', userId);
 
   if (error) return { error: error.message };
+
+  // Trigger Unban Email
+  const { data: user } = await adminSupabase.from('users').select('email, name').eq('id', userId).single();
+  if (user?.email) {
+    await triggerAccountUnbannedEmail(user.email, user.name);
+  }
 
   revalidatePath('/admin');
   return { success: true };

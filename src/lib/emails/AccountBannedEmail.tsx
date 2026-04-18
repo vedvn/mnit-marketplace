@@ -3,11 +3,20 @@ import { EmailLayout, body, heading, paragraph, disclaimerBox, disclaimerText } 
 
 export default function AccountBannedEmail({ 
   name, 
-  reason 
+  reason,
+  until
 }: { 
   name: string; 
   reason: string;
+  until?: string | null;
 }) {
+  const isPermanent = !until;
+  const expiryDate = until ? new Date(until).toLocaleDateString(undefined, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }) : null;
   return (
     <EmailLayout previewText="Urgent: Your account has been suspended">
       <Section style={body}>
@@ -26,6 +35,12 @@ export default function AccountBannedEmail({
           This decision means you can no longer buy, sell, or communicate with other users on the platform. All 
           active listings have been removed.
         </Text>
+
+        <Section style={{ margin: '24px 0', padding: '16px', backgroundColor: '#fef2f2', borderRadius: '8px', border: '1px solid #fee2e2' }}>
+          <Text style={{ ...paragraph, margin: '0', fontWeight: 'bold', color: '#dc2626' }}>
+            Status: {isPermanent ? 'Permanently Suspended' : `Suspended until ${expiryDate}`}
+          </Text>
+        </Section>
 
         <Section style={disclaimerBox}>
           <Text style={disclaimerText}>
