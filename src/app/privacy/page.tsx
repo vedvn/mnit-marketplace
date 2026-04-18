@@ -30,6 +30,10 @@ const sections = [
         body: "We record payment transactions including the Razorpay order ID, payment ID, amount, and timestamp. We do not store your full bank account details, UPI PIN, or card numbers — these are handled exclusively by Razorpay's PCI-DSS compliant infrastructure.",
       },
       {
+        heading: "Dispute & Support Data",
+        body: "If you raise a support ticket or dispute, we collect the chosen category of the issue and your preferred resolution. To protect your privacy, the detailed reason for the dispute is encrypted at the application layer before being stored. It is only decrypted when viewed by an authorized employee moderator or platform administrator for resolution purposes.",
+      },
+      {
         heading: "Usage Data",
         body: "We collect anonymized analytics data via Google Analytics (page views, session duration, device type, geographic region at the city level). This data contains no personally identifiable information and is used solely to improve the platform.",
       },
@@ -119,7 +123,7 @@ const sections = [
     content: [
       {
         heading: "Right to Access",
-        body: "You have the right to request a copy of all personal data we hold about you. To make such a request, email the admin team at admin@mnit.ac.in with the subject 'Data Access Request'. We will respond within 14 days.",
+        body: "You have the right to request a copy of all personal data we hold about you. To make such a request, email the admin team at mnitmarketplace@gmail.com with the subject 'Data Access Request'. We will respond within 14 days.",
       },
       {
         heading: "Right to Correction",
@@ -127,7 +131,7 @@ const sections = [
       },
       {
         heading: "Right to Deletion",
-        body: "You may request permanent deletion of your account and associated data by emailing admin@mnit.ac.in with the subject 'Account Deletion Request'. We will complete the deletion within 30 days. Note: if you have active pending transactions, deletion may be delayed until those are resolved.",
+        body: "You may request permanent deletion of your account and associated data by emailing mnitmarketplace@gmail.com with the subject 'Account Deletion Request'. We will complete the deletion within 30 days. Note: if you have active pending transactions, deletion may be delayed until those are resolved.",
       },
       {
         heading: "Right to Object",
@@ -283,8 +287,8 @@ export default function PrivacyPage() {
             <h2 className="text-3xl display-title uppercase mb-3">Questions about your data?</h2>
             <p className="text-zinc-400 text-sm font-light leading-relaxed max-w-lg">
               Reach out to us at{" "}
-              <a href="mailto:admin@mnit.ac.in" className="text-primary-400 hover:text-primary-300 transition-colors font-bold">
-                admin@mnit.ac.in
+              <a href="mailto:mnitmarketplace@gmail.com" className="text-primary-400 hover:text-primary-300 transition-colors font-bold">
+                mnitmarketplace@gmail.com
               </a>{" "}
               and we will respond within 5 business days.
             </p>

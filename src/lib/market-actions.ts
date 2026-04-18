@@ -41,15 +41,35 @@ export async function getCategories() {
   return data || [];
 }
 
+import { sanitizeText } from './security';
+
 export async function createProduct(formData: FormData, imageUrls: string[], livePhotoUrl: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized' };
 
-  const title = formData.get('title') as string;
-  const description = formData.get('description') as string;
+  // 0. Security Guard: Rate Limiting (Prevent Spam)
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: recentProducts } = await supabase
+    .from('products')
+    .select('*', { count: 'exact', head: true })
+    .eq('seller_id', user.id)
+    .gt('created_at', oneHourAgo);
+
+  if ((recentProducts || 0) >= 10) {
+    return { error: 'Marketplace cooldown active. Please wait an hour before listing more items.' };
+  }
+
+  // 0a. Security Guard: Global Holiday Mode Check
+  const { data: settings } = await supabase.from('admin_settings').select('is_holiday_mode').single();
+  if (settings?.is_holiday_mode) {
+    return { error: 'Marketplace is currently closed for the holiday break.' };
+  }
+
+  const title = sanitizeText(formData.get('title') as string);
+  const description = sanitizeText(formData.get('description') as string);
   const condition = formData.get('condition') as string;
-  const pickup_address = formData.get('pickup_address') as string;
+  const pickup_address = sanitizeText(formData.get('pickup_address') as string);
   const price = parseFloat(formData.get('price') as string);
   const original_price_raw = formData.get('original_price');
   const original_price = original_price_raw ? parseFloat(original_price_raw as string) : null;
@@ -80,13 +100,30 @@ export async function createOrder(productId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized. Please login.' };
 
+  // 0. Security Guard: Rate Limiting (Prevent Order Brute-forcing)
+  const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  const { count: recentOrders } = await supabase
+    .from('transactions')
+    .select('*', { count: 'exact', head: true })
+    .eq('buyer_id', user.id)
+    .gt('created_at', thirtyMinsAgo);
+
+  if ((recentOrders || 0) >= 3) {
+    return { error: 'Too many order attempts. Please wait 30 minutes.' };
+  }
+
   const product = await getProductById(productId);
   if (!product) return { error: 'Product not found' };
   if (product.status !== 'AVAILABLE') return { error: 'Product is no longer available' };
   if (product.seller_id === user.id) return { error: 'You cannot buy your own product' };
 
-  // Fetch admin settings for platform fee percentage
+  // Fetch admin settings for platforms flags
   const { data: adminSettings } = await supabase.from('admin_settings').select('*').single();
+  
+  if (adminSettings?.is_buying_disabled) {
+    return { error: 'Orders are currently disabled due to technical maintenance. Please check back later.' };
+  }
+
   const platformFeePercent = adminSettings?.platform_fee_percent ?? 5; // default 5%
   
   // Fee is calculated but NOT added to the buyer's cost. It is deducted from the seller's payout.

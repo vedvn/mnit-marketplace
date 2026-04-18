@@ -2,15 +2,27 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { logSecurityEvent } from './admin-janitor';
 
-export async function getPendingProducts() {
+// Helper to verify that the user is an employee or admin
+async function verifyStaffClearance() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!user) return false;
 
-  // Security check: ensure user is employee or admin
-  const { data: profile } = await supabase.from('users').select('is_employee, is_admin').eq('id', user.id).single();
-  if (!profile || (!profile.is_employee && !profile.is_admin)) return [];
+  const { data: profile } = await supabase
+    .from('users')
+    .select('is_admin, is_employee')
+    .eq('id', user.id)
+    .single();
+    
+  return profile?.is_admin === true || profile?.is_employee === true;
+}
+
+export async function getPendingProducts() {
+  if (!await verifyStaffClearance()) return [];
+
+  const supabase = await createClient();
 
   const { data } = await supabase
     .from('products')
@@ -22,6 +34,8 @@ export async function getPendingProducts() {
 }
 
 export async function approveProduct(productId: string) {
+  if (!await verifyStaffClearance()) return { error: 'Unauthorized' };
+  
   const supabase = await createClient();
   
   // 1. Get product and seller details before updating
@@ -57,12 +71,17 @@ export async function approveProduct(productId: string) {
     }).catch(console.error);
   }
 
+  // Log approval
+  await logSecurityEvent('APPROVE_PRODUCT', { productId, title: product?.title });
+
   revalidatePath('/employee');
   revalidatePath('/market');
   return { success: true };
 }
 
 export async function rejectProduct(productId: string, reason: string = 'Violates community guidelines') {
+  if (!await verifyStaffClearance()) return { error: 'Unauthorized' };
+
   const supabase = await createClient();
 
   const { data: product } = await supabase
@@ -100,6 +119,8 @@ export async function rejectProduct(productId: string, reason: string = 'Violate
 }
 
 export async function banUser(userId: string, reason: string = 'Fraudulent activity or scam attempts') {
+  if (!await verifyStaffClearance()) return { error: 'Unauthorized' };
+
   const supabase = await createClient();
 
   const { data: user } = await supabase

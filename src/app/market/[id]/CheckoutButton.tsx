@@ -12,9 +12,10 @@ interface Props {
   price: number;
   isLoggedIn: boolean;
   productTitle: string;
+  isBuyingDisabled?: boolean;
 }
 
-export default function CheckoutButton({ productId, price, isLoggedIn, productTitle }: Props) {
+export default function CheckoutButton({ productId, price, isLoggedIn, productTitle, isBuyingDisabled }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -182,15 +183,29 @@ export default function CheckoutButton({ productId, price, isLoggedIn, productTi
             {error}
           </div>
         )}
-        <button
-          onClick={() => { setError(null); setShowModal(true); setLoading(false); }}
-          disabled={loading}
-          className="w-full h-16 flex items-center justify-center gap-3 bg-primary-600 text-white font-bold text-sm uppercase tracking-widest hover:bg-primary-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-            <>Buy Now — ₹{price}</>
-          )}
-        </button>
+        {isBuyingDisabled ? (
+           <div className="p-8 bg-amber-500/10 bento-border-t text-center">
+             <div className="flex justify-center mb-3">
+               <ShieldBan className="w-8 h-8 text-amber-600" />
+             </div>
+             <p className="text-xs font-black uppercase tracking-widest text-amber-700 leading-relaxed">
+               Orders are currently disabled due to technical maintenance.
+             </p>
+             <p className="text-[10px] text-amber-600/70 font-bold uppercase tracking-widest mt-1">
+               You can still browse and list products
+             </p>
+           </div>
+        ) : (
+          <button
+            onClick={() => { setError(null); setShowModal(true); setLoading(false); }}
+            disabled={loading}
+            className="w-full h-16 flex items-center justify-center gap-3 bg-primary-600 text-white font-bold text-sm uppercase tracking-widest hover:bg-primary-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+              <>Buy Now — ₹{price}</>
+            )}
+          </button>
+        )}
       </div>
     </>
   );

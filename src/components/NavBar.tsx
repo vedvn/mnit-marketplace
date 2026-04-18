@@ -5,7 +5,7 @@ import { signOut } from '@/lib/auth-actions';
 
 import MobileNav from "./MobileNav";
 
-export default async function NavBar() {
+export default async function NavBar({ isBuyingDisabled }: { isBuyingDisabled?: boolean }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -16,7 +16,7 @@ export default async function NavBar() {
   }
 
   return (
-    <header className="fixed top-0 inset-x-0 h-16 z-50 bg-background bento-border-b">
+    <header className={`fixed ${isBuyingDisabled ? 'top-10' : 'top-0'} inset-x-0 h-16 z-50 bg-background bento-border-b transition-all duration-300`}>
       <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="text-lg sm:text-xl display-title tracking-tight flex items-center gap-1.5 sm:gap-2">

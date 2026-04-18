@@ -45,7 +45,7 @@ const FOOTER_LINKS = {
 const SOCIAL_LINKS = [
   { Icon: GithubIcon, href: "https://github.com", label: "GitHub" },
   { Icon: TwitterIcon, href: "https://twitter.com", label: "Twitter" },
-  { Icon: InstagramIcon, href: "https://instagram.com", label: "Instagram" },
+  { Icon: InstagramIcon, href: "https://www.instagram.com/mnitmarketplace/", label: "Instagram" },
 ];
 
 export default function Footer() {

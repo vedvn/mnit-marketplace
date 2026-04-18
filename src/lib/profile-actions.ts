@@ -80,7 +80,13 @@ export async function markProductSold(productId: string) {
   return { success: true };
 }
 
-export async function raiseDispute(transactionId: string, productId: string, reason: string) {
+export async function raiseDispute(
+  transactionId: string | null, 
+  productId: string | null, 
+  reason: string,
+  category?: string,
+  preferredResolution?: string
+) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized' };
@@ -91,15 +97,17 @@ export async function raiseDispute(transactionId: string, productId: string, rea
 
   const adminSupabase = createAdminClient();
 
-  // 1. Verify user is part of the transaction
-  const { data: tx } = await adminSupabase
-    .from('transactions')
-    .select('id, buyer_id, seller_id')
-    .eq('id', transactionId)
-    .single();
+  // 1. If transaction ID is provided, verify user is part of it
+  if (transactionId) {
+    const { data: tx } = await adminSupabase
+      .from('transactions')
+      .select('id, buyer_id, seller_id')
+      .eq('id', transactionId)
+      .single();
 
-  if (!tx || (tx.buyer_id !== user.id && tx.seller_id !== user.id)) {
-    return { error: 'You are not authorized to raise a dispute for this transaction.' };
+    if (!tx || (tx.buyer_id !== user.id && tx.seller_id !== user.id)) {
+      return { error: 'You are not authorized to raise a dispute for this transaction.' };
+    }
   }
 
   // 2. Encrypt the reason
@@ -113,6 +121,8 @@ export async function raiseDispute(transactionId: string, productId: string, rea
       product_id: productId,
       raised_by: user.id,
       reason: encryptedReason,
+      category,
+      preferred_resolution: preferredResolution,
       status: 'OPEN'
     });
 

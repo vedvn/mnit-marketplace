@@ -51,13 +51,25 @@ export async function signInWithPassword(formData: FormData) {
 
   const supabase = await createClient();
 
+  // 1. Check if the user exists in our DB first to provide better feedback
+  const { data: userExists } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', email)
+    .single();
+
+  if (!userExists) {
+    return { error: "Account doesn't exist. Please signup first." };
+  }
+
+  // 2. Proceed with sign in
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     if (error.message.toLowerCase().includes('email not confirmed')) {
       return { error: 'Please verify your email first. Check your @mnit.ac.in inbox for the verification link we sent.' };
     }
-    return { error: 'Invalid email or password. Please try again.' };
+    return { error: 'Incorrect password. Please try again.' };
   }
 
   revalidatePath('/', 'layout');

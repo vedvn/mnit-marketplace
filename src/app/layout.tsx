@@ -22,24 +22,30 @@ import { GoogleAnalytics } from '@next/third-parties/google';
 import InteractiveBackground from "@/components/InteractiveBackground";
 import CustomCursor from "@/components/CustomCursor";
 import Footer from "@/components/Footer";
+import MainLayout from "@/components/MainLayout";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const adminSupabase = createAdminClient();
+  const { data: settings } = await adminSupabase.from('admin_settings').select('is_buying_disabled').single();
+  const isBuyingDisabled = settings?.is_buying_disabled || false;
+
   return (
     <html
       lang="en"
       className={`${inter.variable} ${outfit.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans bg-background text-foreground pt-20">
-        <InteractiveBackground />
-        <CustomCursor />
-        <NavBar />
+      <MainLayout 
+        navbar={<NavBar isBuyingDisabled={isBuyingDisabled} />} 
+        footer={<Footer />}
+        isBuyingDisabled={isBuyingDisabled}
+      >
         {children}
-        <Footer />
-      </body>
+      </MainLayout>
       <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID || "G-YOUR_TRACKING_ID"} />
     </html>
   );

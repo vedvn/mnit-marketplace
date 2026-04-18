@@ -28,20 +28,54 @@ export default async function ProfilePage() {
     .eq('buyer_id', user.id)
     .order('created_at', { ascending: false });
 
+  const interactions = [
+    ...(purchases?.map(tx => ({
+      id: tx.product_id,
+      title: tx.product?.title || 'Unknown Item',
+      txId: tx.id,
+      role: 'buyer' as const
+    })) || []),
+    ...(products?.filter(p => p.status === 'SOLD').map(p => ({
+      id: p.id,
+      title: p.title,
+      txId: p.sale_tx?.[0]?.id,
+      role: 'seller' as const
+    })) || [])
+  ];
+
+  // Fetch user's disputes
+  const { data: userDisputes } = await adminSupabase
+    .from('disputes')
+    .select('*, product:products(title, images)')
+    .eq('raised_by', user.id)
+    .order('created_at', { ascending: false });
+
   return (
     <div className="min-h-screen pt-24 pb-12 px-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col md:flex-row items-center gap-6 p-8 rounded-3xl glass-card mb-10 border border-black/5">
-        <div className="w-24 h-24 rounded-full bg-primary-500/20 text-primary-500 flex items-center justify-center font-bold text-4xl">
-          {userProfile?.name?.charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">{userProfile?.name}</h1>
-          <div className="flex flex-wrap gap-4 text-foreground/70">
-            <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-emerald-500" /> Verified Student</span>
-            <span>{user.email}</span>
-            {userProfile?.is_employee && <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent text-xs font-bold uppercase">Staff</span>}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-8 rounded-3xl glass-card mb-10 border border-black/5 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/5 blur-3xl rounded-full -mr-16 -mt-16" />
+        
+        <div className="flex flex-col md:flex-row items-center gap-6 relative z-10">
+          <div className="w-24 h-24 rounded-full bg-primary-500/20 text-primary-500 flex items-center justify-center font-bold text-4xl shadow-inner">
+            {userProfile?.name?.charAt(0).toUpperCase()}
           </div>
+          <div className="text-center md:text-left">
+            <h1 className="text-3xl font-bold tracking-tight mb-2">{userProfile?.name}</h1>
+            <div className="flex flex-wrap justify-center md:justify-start gap-4 text-foreground/70">
+              <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-emerald-500" /> Verified Student</span>
+              <span>{user.email}</span>
+              {userProfile?.is_employee && <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent text-xs font-bold uppercase">Staff</span>}
+            </div>
+          </div>
+        </div>
+
+        <div className="relative z-10">
+          <DisputeForm 
+            availableItems={interactions} 
+            triggerLabel="Help / Report Issue"
+            triggerClassName="px-6 py-3 rounded-2xl bg-foreground/5 hover:bg-foreground/10 text-foreground text-xs font-bold uppercase tracking-widest transition-all border border-black/5 flex items-center gap-2"
+          />
         </div>
       </div>
 
@@ -130,7 +164,7 @@ export default async function ProfilePage() {
         )}
       </div>
 
-      <div>
+      <div className="mb-12">
         <h2 className="text-2xl font-bold mb-6">My Purchases</h2>
         {(!purchases || purchases.length === 0) ? (
           <div className="p-8 text-center glass-card rounded-2xl border border-black/5 text-foreground/60">
@@ -173,6 +207,71 @@ export default async function ProfilePage() {
                     productTitle={tx.product?.title || 'Unknown Item'} 
                   />
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Raised Tickets Section */}
+      <div>
+        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+          <AlertTriangle className="w-6 h-6 text-red-500" /> Raised Support Tickets
+        </h2>
+        {(!userDisputes || userDisputes.length === 0) ? (
+          <div className="p-12 text-center glass-card rounded-2xl border border-black/5 text-foreground/50 italic font-medium">
+            You haven't raised any support tickets yet.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {userDisputes.map(dispute => (
+              <div key={dispute.id} className="glass-card p-6 rounded-3xl border border-black/5 flex flex-col gap-4 relative overflow-hidden group">
+                <div className={`absolute top-0 right-0 w-1 h-full ${dispute.status === 'OPEN' ? 'bg-red-500' : dispute.status === 'RESOLVED' ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+                
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest rounded-full ${
+                        dispute.status === 'OPEN' ? 'bg-red-500/10 text-red-600' : 
+                        dispute.status === 'RESOLVED' ? 'bg-emerald-500/10 text-emerald-600' : 
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {dispute.status}
+                      </span>
+                      {dispute.category && (
+                        <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest rounded-full bg-primary-500/10 text-primary-600 border border-primary-500/10">
+                          {dispute.category}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-foreground/40 font-medium">Filed on {new Date(dispute.created_at).toLocaleDateString()}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 rounded-2xl bg-foreground/5 border border-black/5">
+                  <div className="w-10 h-10 rounded-lg bg-white overflow-hidden shrink-0 border border-black/5">
+                    {dispute.product?.images?.[0] ? (
+                      <img src={dispute.product.images[0]} className="w-full h-full object-cover" />
+                    ) : (
+                      <ShoppingBag className="w-5 h-5 m-auto mt-2.5 text-foreground/20" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase font-bold text-foreground/30 leading-none mb-1">Related Listing</p>
+                    <p className="text-sm font-bold truncate">{dispute.product?.title || 'General Account Report'}</p>
+                  </div>
+                </div>
+
+                {dispute.resolution && (
+                  <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 animate-in slide-in-from-top-2 duration-500">
+                    <p className="text-[10px] uppercase font-bold text-emerald-600 tracking-widest mb-2 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Moderator Resolution
+                    </p>
+                    <p className="text-sm text-emerald-900 leading-relaxed font-medium">
+                      "{dispute.resolution}"
+                    </p>
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -44,10 +44,51 @@ export async function middleware(request: NextRequest) {
     path.startsWith('/admin')
   );
 
+  // 0. Global Mode Checks (Applies to everyone)
+  const { data: settings } = await supabase.from('admin_settings').select('is_maintenance_mode, is_holiday_mode').single();
+  const isMaintenance = settings?.is_maintenance_mode;
+  const isHoliday = settings?.is_holiday_mode;
+  
+  // Critical paths that must ALWAYS be accessible
+  const isCriticalPath = 
+    path === '/maintenance' || 
+    path === '/holiday' ||
+    path === '/login' ||
+    path.startsWith('/auth') || 
+    path.startsWith('/_next') || 
+    path === '/favicon.ico';
+
+  if (!isCriticalPath) {
+    // Determine if user is staff
+    let isStaff = false;
+    if (user) {
+      const { data: profile } = await supabase
+        .from('users')
+        .select('is_admin, is_employee')
+        .eq('id', user.id)
+        .single();
+      isStaff = profile?.is_admin || profile?.is_employee;
+    }
+
+    // 0a. Maintenance Redirect
+    if (isMaintenance && !isStaff) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/maintenance';
+      return NextResponse.redirect(url);
+    }
+
+    // 0b. Holiday Redirect
+    if (isHoliday && !isStaff) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/holiday';
+      return NextResponse.redirect(url);
+    }
+  }
+
   if (user && path !== '/banned') {
     const { data: profile } = await supabase
       .from('users')
-      .select('name, is_banned, banned_until, welcome_email_sent, phone_number')
+      .select('name, is_admin, is_employee, is_banned, banned_until, welcome_email_sent, phone_number')
       .eq('id', user.id)
       .single();
     

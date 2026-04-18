@@ -41,6 +41,9 @@ export async function getAdminDashboardData() {
   const cleared = await verifyStaffClearance();
   if (!cleared) return { error: 'Unauthorized' };
 
+  // Trigger automated janitor on dashboard access (Self-healing TTL)
+  runSystemJanitor().catch(console.error);
+
   const supabase = await createClient();
   const adminSupabase = createAdminClient();
 
@@ -87,8 +90,8 @@ export async function getAdminDashboardData() {
     .from('products')
     .select('category_id, status');
   
-  // 5. Current fee setting
-  const { data: settings } = await adminSupabase.from('admin_settings').select('platform_fee_percent').single();
+  // 5. Current settings
+  const { data: settings } = await adminSupabase.from('admin_settings').select('*').single();
 
   // 6. Categories
   const { data: categories } = await adminSupabase.from('categories').select('*').order('name');
@@ -101,6 +104,10 @@ export async function getAdminDashboardData() {
     transactions: transactions || [],
     categoryStats: categoryStats || [],
     feePercent: settings?.platform_fee_percent ?? 5,
+    isMaintenanceMode: settings?.is_maintenance_mode ?? false,
+    isBuyingDisabled: settings?.is_buying_disabled ?? false,
+    isHolidayMode: settings?.is_holiday_mode ?? false,
+    holidayMessage: settings?.holiday_message ?? 'MNIT Marketplace is closed for the holiday break. See you soon!',
     categories: categories || [],
     totals: {
       amountCollected: totalAmountCollected,
@@ -133,6 +140,9 @@ export async function adminDeleteProduct(productId: string, reason: string = "Vi
   if (seller?.email) {
     await triggerListingDeletedEmail(seller.email, seller.name, product.title, reason);
   }
+
+  // Log deletion
+  await logSecurityEvent('DELETE_PRODUCT', { productId, title: product.title, reason });
 
   revalidatePath('/admin');
   return { success: true };
@@ -179,6 +189,9 @@ export async function adminResolveDispute(disputeId: string, status: 'RESOLVED' 
     .eq('id', disputeId);
 
   if (error) return { error: error.message };
+
+  // Log resolution
+  await logSecurityEvent('RESOLVE_DISPUTE', { disputeId, status, resolution });
 
   revalidatePath('/admin');
   return { success: true };
@@ -251,6 +264,9 @@ export async function adminBanUser(userId: string, durationDays: number | null, 
     );
   }
 
+  // Log Ban
+  await logSecurityEvent('BAN_USER', { userId, durationDays, reason });
+
   revalidatePath('/admin');
   return { success: true };
 }
@@ -276,6 +292,9 @@ export async function adminUnbanUser(userId: string) {
   if (user?.email) {
     await triggerAccountUnbannedEmail(user.email, user.name);
   }
+
+  // Log Unban
+  await logSecurityEvent('UNBAN_USER', { userId });
 
   revalidatePath('/admin');
   return { success: true };
@@ -340,5 +359,29 @@ export async function adminUpdatePayoutStatus(transactionId: string, status: 'PE
   }
 
   revalidatePath('/admin');
+  return { success: true };
+}
+export async function adminUpdateGlobalSettings(updates: { 
+  platform_fee_percent?: number, 
+  is_maintenance_mode?: boolean, 
+  is_buying_disabled?: boolean,
+  is_holiday_mode?: boolean,
+  holiday_message?: string
+}) {
+  const cleared = await verifyStaffClearance();
+  if (!cleared) return { error: 'Unauthorized' };
+
+  const adminSupabase = createAdminClient();
+  const { error } = await adminSupabase
+    .from('admin_settings')
+    .update(updates)
+    .not('id', 'is', null); // Update all rows (there should only be one)
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  revalidatePath('/market');
+  revalidatePath('/');
+  revalidatePath('/holiday');
   return { success: true };
 }

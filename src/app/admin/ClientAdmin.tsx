@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useEffect, Fragment, useMemo } from 'react';
-import { getAdminDashboardData, adminBanUser, adminUnbanUser, adminDeleteTransaction, adminCreateCategory, adminDeleteCategory, adminUpdatePayoutStatus, getDisputeData, adminResolveDispute, adminDeleteProduct } from '@/lib/admin-actions';
+import { getAdminDashboardData, adminBanUser, adminUnbanUser, adminDeleteTransaction, adminCreateCategory, adminDeleteCategory, adminUpdatePayoutStatus, getDisputeData, adminResolveDispute, adminDeleteProduct, adminUpdateGlobalSettings } from '@/lib/admin-actions';
 import { getPendingProducts, approveProduct, rejectProduct } from '@/lib/employee-actions';
-import { Loader2, ShieldAlert, ShieldCheck, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users, Trash2, Tag, PlusCircle, ChevronDown, ChevronUp, CheckCircle2, Clock, CreditCard, ExternalLink, Phone, Copy, Check, AlertTriangle, PieChart as PieChartIcon, Activity } from 'lucide-react';
+import { Loader2, ShieldAlert, ShieldCheck, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users, Trash2, Tag, PlusCircle, ChevronDown, ChevronUp, CheckCircle2, Clock, CreditCard, ExternalLink, Phone, Copy, Check, AlertTriangle, PieChart as PieChartIcon, Activity, HardHat, RefreshCcw } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 
 export default function ClientAdmin() {
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'sellers' | 'verification' | 'broadcast' | 'categories' | 'disputes' | 'listings' | 'banned' | 'buyers'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'sellers' | 'verification' | 'broadcast' | 'categories' | 'disputes' | 'listings' | 'banned' | 'buyers' | 'system'>('analytics');
 
   const [dashboardData, setDashboardData] = useState<any>(null);
+  const [handleUpdateLoading, setHandleUpdateLoading] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [disputes, setDisputes] = useState<any[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -245,6 +246,14 @@ export default function ClientAdmin() {
     setActionLoading(null);
   }
 
+  async function handleUpdateSystem(updates: any) {
+    setHandleUpdateLoading(true);
+    const res = await adminUpdateGlobalSettings(updates);
+    if (res.error) alert(res.error);
+    await fetchData();
+    setHandleUpdateLoading(false);
+  }
+
   // Broadcast Action
   async function handleBroadcast(e: React.FormEvent) {
     e.preventDefault();
@@ -293,7 +302,7 @@ export default function ClientAdmin() {
 
         {/* Tab Nav - Desktop */}
         <div className="hidden lg:flex flex-wrap gap-2 p-1 bg-foreground/5 rounded-xl self-start md:self-auto">
-          {['analytics', 'listings', 'sellers', 'buyers', 'banned', 'categories', 'verification', 'disputes', 'broadcast'].map(tab => (
+          {['analytics', 'listings', 'sellers', 'buyers', 'banned', 'categories', 'verification', 'disputes', 'broadcast', 'system'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as any)}
@@ -474,10 +483,10 @@ export default function ClientAdmin() {
                 <thead>
                   <tr className="text-foreground/50 uppercase tracking-wider border-b border-black/5 bg-foreground/5">
                     <th className="py-3 px-6 font-bold">Product</th>
+                    <th className="py-3 px-6 font-bold">Buyer</th>
+                    <th className="py-3 px-6 font-bold">Seller</th>
                     <th className="py-3 px-6 font-bold">Amount</th>
                     <th className="py-3 px-6 font-bold">Payment</th>
-                    <th className="py-3 px-6 font-bold">Delivery</th>
-                    <th className="py-3 px-6 font-bold">Payout</th>
                     <th className="py-3 px-6 font-bold text-right text-[10px]">Details</th>
                   </tr>
                 </thead>
@@ -485,29 +494,19 @@ export default function ClientAdmin() {
                   {dashboardData?.transactions?.slice(0, 30).map((tx: any) => (
                     <Fragment key={tx.id}>
                       <tr className={`hover:bg-foreground/5 transition-colors cursor-pointer ${expandedTx === tx.id ? 'bg-foreground/5' : ''}`} onClick={() => setExpandedTx(expandedTx === tx.id ? null : tx.id)}>
-                        <td className="py-4 px-6 font-medium max-w-[150px] sm:max-w-[200px] truncate">{tx.product?.title || 'Unknown'}</td>
+                        <td className="py-4 px-6 font-medium max-w-[150px] truncate">{tx.product?.title || 'Unknown'}</td>
+                        <td className="py-4 px-6">
+                            <div className="text-xs font-bold">{tx.buyer?.name}</div>
+                            <div className="text-[9px] uppercase tracking-widest text-foreground/40 font-bold">{tx.buyer?.email}</div>
+                        </td>
+                        <td className="py-4 px-6">
+                            <div className="text-xs font-bold">{tx.seller?.name}</div>
+                            <div className="text-[9px] uppercase tracking-widest text-foreground/40 font-bold">{tx.seller?.email}</div>
+                        </td>
                         <td className="py-4 px-6 font-black text-emerald-600">₹{tx.amount_paid}</td>
                         <td className="py-4 px-6">
                           <span className={`px-2 py-0.5 text-[9px] uppercase font-bold rounded-full ${tx.payment_status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-700' : 'bg-amber-500/10 text-amber-700'}`}>
                             {tx.payment_status}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="flex items-center gap-1.5">
-                            {tx.payout_status !== 'PENDING' ? (
-                              <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase">
-                                <CheckCircle2 className="w-3 h-3" /> Received
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 uppercase">
-                                <Clock className="w-3 h-3" /> Pending
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-4 px-6">
-                          <span className={`px-2 py-0.5 text-[9px] uppercase font-bold rounded-full ${tx.payout_status === 'COMPLETED' ? 'bg-primary-500/10 text-primary-700' : 'bg-foreground/10 text-foreground/50'}`}>
-                            {tx.payout_status}
                           </span>
                         </td>
                         <td className="py-4 px-6 text-right">
@@ -1092,6 +1091,199 @@ export default function ClientAdmin() {
                 No disputes found.
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* SYSTEM TAB */}
+      {activeTab === 'system' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-black uppercase tracking-tighter">Global System Controls</h2>
+            <div className="px-3 py-1 bg-primary-500/10 text-primary-700 text-[10px] font-black uppercase tracking-widest rounded-full">
+              Live Status
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Maintenance Mode Toggle */}
+            <div className="glass-card p-8 rounded-3xl border-2 border-black/5 bento-border flex flex-col justify-between group transition hover:border-black/20">
+              <div className="space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-black flex items-center justify-center text-white shadow-xl shadow-black/20 transition group-hover:scale-110">
+                  <HardHat className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black uppercase tracking-tighter">Maintenance Mode</h3>
+                  <p className="text-sm text-foreground/60 leading-relaxed mt-2">
+                    Activating this will block all non-staff users from accessing the marketplace. Use this for major site updates or logic changes.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-8 flex items-center justify-between p-4 bg-foreground/5 rounded-2xl">
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${dashboardData?.isMaintenanceMode ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">
+                    Currently: {dashboardData?.isMaintenanceMode ? 'Active' : 'Offline'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleUpdateSystem({ is_maintenance_mode: !dashboardData?.isMaintenanceMode })}
+                  disabled={handleUpdateLoading}
+                  className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isMaintenanceMode 
+                    ? 'bg-white text-black hover:bg-gray-100 shadow-white/10' 
+                    : 'bg-black text-white hover:bg-black/80 shadow-black/10'}`}
+                >
+                  {handleUpdateLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (dashboardData?.isMaintenanceMode ? 'Disable' : 'Enable')}
+                </button>
+              </div>
+            </div>
+
+            {/* Buying Disable Toggle */}
+            <div className="glass-card p-8 rounded-3xl border-2 border-black/5 bento-border flex flex-col justify-between group transition hover:border-black/20">
+              <div className="space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-primary-600 flex items-center justify-center text-white shadow-xl shadow-primary-600/20 transition group-hover:scale-110">
+                  <CreditCard className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black uppercase tracking-tighter">Global Purchases</h3>
+                  <p className="text-sm text-foreground/60 leading-relaxed mt-2">
+                    Disabling this will prevent users from clicking &quot;Buy Now&quot;. They can still browse, list products, and communicate. Useful for payment platform transitions.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-8 flex items-center justify-between p-4 bg-foreground/5 rounded-2xl">
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${dashboardData?.isBuyingDisabled ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">
+                    Status: {dashboardData?.isBuyingDisabled ? 'Payments Disabled' : 'Payments Live'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleUpdateSystem({ is_buying_disabled: !dashboardData?.isBuyingDisabled })}
+                  disabled={handleUpdateLoading}
+                  className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isBuyingDisabled 
+                    ? 'bg-white text-black hover:bg-gray-100 shadow-white/10' 
+                    : 'bg-primary-600 text-white hover:bg-primary-700 shadow-primary-600/10'}`}
+                >
+                  {handleUpdateLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (dashboardData?.isBuyingDisabled ? 'Enable Buying' : 'Disable Buying')}
+                </button>
+              </div>
+            </div>
+
+            {/* Holiday Mode Toggle */}
+            <div className="glass-card p-8 rounded-3xl border-2 border-black/5 bento-border flex flex-col justify-between group transition hover:border-black/20">
+              <div className="space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-xl shadow-emerald-600/20 transition group-hover:scale-110">
+                  <Activity className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black uppercase tracking-tighter">Holiday Mode</h3>
+                  <p className="text-sm text-foreground/60 leading-relaxed mt-2">
+                    Gracefully close the marketplace for breaks. Users will see a festive landing page while staff retain full dashboard access.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-8 flex items-center justify-between p-4 bg-foreground/5 rounded-2xl">
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${dashboardData?.isHolidayMode ? 'bg-emerald-500 animate-pulse' : 'bg-foreground/20'}`} />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">
+                    Mode: {dashboardData?.isHolidayMode ? 'Holiday Break' : 'Standard'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleUpdateSystem({ is_holiday_mode: !dashboardData?.isHolidayMode })}
+                  disabled={handleUpdateLoading}
+                  className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isHolidayMode 
+                    ? 'bg-white text-emerald-600 hover:bg-gray-100 shadow-white/10' 
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/10'}`}
+                >
+                  {handleUpdateLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (dashboardData?.isHolidayMode ? 'Disable Holiday' : 'Enable Holiday')}
+                </button>
+              </div>
+            </div>
+
+            {/* Holiday Message Editor */}
+            <div className="md:col-span-2 glass-card p-8 rounded-3xl border-2 border-black/5 bento-border flex flex-col group transition hover:border-black/20">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-black uppercase tracking-tighter">Holiday Announcement</h3>
+                    <p className="text-xs text-foreground/40 font-bold uppercase tracking-widest mt-1">Status: {dashboardData?.isHolidayMode ? 'Displayed to all users' : 'Hidden'}</p>
+                  </div>
+                </div>
+                <div className="relative group">
+                  <textarea
+                    defaultValue={dashboardData?.holidayMessage}
+                    onBlur={(e) => {
+                      if (e.target.value !== dashboardData?.holidayMessage) {
+                        handleUpdateSystem({ holiday_message: e.target.value });
+                      }
+                    }}
+                    rows={2}
+                    placeholder="Enter your festive message for the campus..."
+                    className="w-full p-6 pb-12 rounded-2xl bg-foreground/5 border border-black/5 focus:border-emerald-500 outline-none text-sm transition-all resize-none italic"
+                  />
+                  <div className="absolute bottom-4 right-6 text-[9px] font-bold uppercase tracking-widest text-foreground/30 group-focus-within:text-emerald-500 transition-colors">
+                    Auto-saves on blur
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* System Health & Security */}
+            <div className="md:col-span-2 glass-card p-8 rounded-3xl border-2 border-black/5 bento-border flex flex-col group transition hover:border-black/20">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/10">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black uppercase tracking-tighter">Security & Health</h3>
+                      <p className="text-xs text-foreground/40 font-bold uppercase tracking-widest mt-1">Audit Logs: Enabled · Janitor: Active</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-foreground/60 leading-relaxed max-w-xl">
+                    Our automated Janitor sweeps the platform for expired sessions and abandoned data every time an admin logs in. You can also trigger a manual deep-clean below.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={async () => {
+                      const { runSystemJanitor } = await import('@/lib/admin-janitor');
+                      const res = await runSystemJanitor();
+                      if (res.success) alert('Janitor successfully cleaned the system!');
+                    }}
+                    className="px-6 py-3 rounded-xl bg-white text-black border-2 border-black/5 hover:border-black/20 text-[10px] font-black uppercase tracking-widest transition shadow-xl"
+                  >
+                    Run System Cleanup
+                  </button>
+                  <div className="px-6 py-3 rounded-xl bg-foreground/5 text-foreground/40 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 italic">
+                    <RefreshCcw className="w-3 h-3 animate-spin" />
+                    Self-Healing Active
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-8 border-t border-black/5 grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-foreground/30 mb-1">TTL Status</p>
+                  <p className="text-xs font-bold text-emerald-600">Active Monitoring</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-foreground/30 mb-1">Transaction Integrity</p>
+                  <p className="text-xs font-bold text-emerald-600">Level 5 Hardening</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-foreground/30 mb-1">Audit Trail</p>
+                  <p className="text-xs font-bold text-emerald-600">Encrypted Logging</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

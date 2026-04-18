@@ -15,8 +15,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const { data: { user } } = await supabase.auth.getUser();
 
   const adminSupabase = createAdminClient();
-  const { data: adminSettings } = await adminSupabase.from('admin_settings').select('platform_fee_percent').single();
+  const { data: adminSettings } = await adminSupabase.from('admin_settings').select('*').single();
   const feePercent: number = adminSettings?.platform_fee_percent ?? 5;
+  const isBuyingDisabled: boolean = adminSettings?.is_buying_disabled ?? false;
 
   const isOwner = user?.id === product.seller_id;
 
@@ -128,6 +129,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                   price={product.price}
                   isLoggedIn={!!user}
                   productTitle={product.title}
+                  isBuyingDisabled={isBuyingDisabled}
                 />
               )}
             </div>
