@@ -1,4 +1,4 @@
-import { getProductById } from '@/lib/market-actions';
+import { getProductById, recordProductInteraction } from '@/lib/market-actions';
 import { notFound } from 'next/navigation';
 import { Tag, MapPin, Clock, IndianRupee, ShieldCheck } from 'lucide-react';
 import CheckoutButton from './CheckoutButton';
@@ -49,6 +49,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const product = await getProductById(id);
   if (!product) notFound();
+
+  // Orchestrate high-fidelity interaction audit (non-owner only)
+  await recordProductInteraction(id);
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

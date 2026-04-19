@@ -15,6 +15,8 @@ import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
 import CheckoutButton from '@/app/market/[id]/CheckoutButton';
 import Link from 'next/link';
 import ShareButton from './ShareButton';
+import { useEffect } from 'react';
+import { recordProductInteraction } from '@/lib/market-actions';
 
 interface ProductQuickViewProps {
   product: any;
@@ -23,6 +25,13 @@ interface ProductQuickViewProps {
 
 export default function ProductQuickView({ product, isLoggedIn }: ProductQuickViewProps) {
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Orchestrate high-fidelity interaction audit (non-owner only)
+      recordProductInteraction(product.id);
+    }
+  }, [isOpen, product.id]);
 
   return (
     <>

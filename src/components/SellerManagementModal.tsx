@@ -104,18 +104,12 @@ export default function SellerManagementModal({ product }: SellerManagementModal
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <div className="p-4 rounded-2xl bg-white border border-black/5">
                       <p className="text-[9px] font-black uppercase tracking-widest text-foreground/30 mb-1 flex items-center gap-1">
-                        <Eye className="w-3 h-3" /> Interest
+                        <Eye className="w-3 h-3" /> Interactions
                       </p>
-                      <p className="text-xl font-black">--</p>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-white border border-black/5">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-foreground/30 mb-1 flex items-center gap-1">
-                        <Share2 className="w-3 h-3" /> Shares
-                      </p>
-                      <p className="text-xl font-black">--</p>
+                      <p className="text-xl font-black">{product.interactions_count || 0}</p>
                     </div>
                   </div>
                 </div>
@@ -163,17 +157,7 @@ export default function SellerManagementModal({ product }: SellerManagementModal
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/30 mb-6">Management Actions</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
-                      <div className={product.status === 'SOLD' ? 'opacity-40 pointer-events-none' : ''}>
-                        <ShareButton
-                          variant="full"
-                          title={product.title}
-                          text={`Check out my ${product.title} on MNIT Marketplace!`}
-                          url={`/market/${product.id}`}
-                        />
-                        {product.status === 'SOLD' && (
-                          <p className="text-[8px] font-black uppercase text-center mt-1 text-foreground/40">Sharing Disabled (Sold)</p>
-                        )}
-                      </div>
+                      {/* Shares professionally disabled for management clarity as requested */}
 
                       {product.status === 'AVAILABLE' && (
                         <button
