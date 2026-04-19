@@ -119,18 +119,32 @@ export async function middleware(request: NextRequest) {
       triggerWelcomeEmail(user.email!, user.user_metadata?.full_name || 'User').catch(console.error);
     }
 
-    // 3. Profile completion gate — check if record exists in user_financials
+    // 3. Institutional Profile Gates
+    // We liquid-smoothly defer Banking details until listing, but professionally require Phone at start.
     const { data: financials } = await supabase
       .from('user_financials')
-      .select('id')
+      .select('phone_number, upi_id, bank_account_number')
       .eq('id', user.id)
       .single();
 
-    const profileComplete = !!financials;
+    const hasPhone = !!financials?.phone_number;
+    const hasBanking = !!(financials?.upi_id || financials?.bank_account_number);
     const isOnCompleteProfile = path === '/complete-profile';
-    if (!profileComplete && !isOnCompleteProfile) {
+    const isSellingPath = path.startsWith('/sell');
+
+    // Global Contact Gate: Redirect if no phone (except on critical paths or /complete-profile)
+    if (!hasPhone && !isOnCompleteProfile) {
       const url = request.nextUrl.clone();
       url.pathname = '/complete-profile';
+      return NextResponse.redirect(url);
+    }
+
+    // High-Performance Selling Gate: Redirect to finish banking metadata only when listing
+    if (isSellingPath && !hasBanking && !isOnCompleteProfile) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/complete-profile';
+      // We pass a query param to professionally personalize the onboarding intent
+      url.searchParams.set('intent', 'sell');
       return NextResponse.redirect(url);
     }
   }

@@ -22,7 +22,7 @@ export default function ListingApprovedEmail({
           It is now live on the marketplace and visible to other students.
         </Text>
         <Button 
-          href={`${process.env.NEXT_PUBLIC_APP_URL || 'https://mnit-marketplace.in'}/market/${productId}`} 
+          href={`${process.env.NEXT_PUBLIC_APP_URL || 'https://mnitmarketplace.store'}/market/${productId}`} 
           style={buttonPrimary}
         >
           View Listing →

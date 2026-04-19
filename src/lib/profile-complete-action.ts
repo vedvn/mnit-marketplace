@@ -11,19 +11,23 @@ export async function completeProfile(formData: FormData) {
   const bankIfsc = formData.get('bank_ifsc') as string;
   const upiId = formData.get('upi_id') as string;
 
+  const isContactOnly = formData.get('is_contact_only') === 'true';
+
   if (!phone) return { error: 'Phone number is required.' };
   if (!/^[6-9]\d{9}$/.test(phone)) {
     return { error: 'Enter a valid 10-digit Indian mobile number.' };
   }
 
-  if (payoutMethod === 'upi') {
-    if (!upiId || !upiId.includes('@')) {
-      return { error: 'Enter a valid UPI ID (e.g. name@upi).' };
-    }
-  } else {
-    if (!bankAccount) return { error: 'Bank account number is required.' };
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankIfsc?.toUpperCase())) {
-      return { error: 'Enter a valid IFSC code (e.g. SBIN0001234).' };
+  if (!isContactOnly) {
+    if (payoutMethod === 'upi') {
+      if (!upiId || !upiId.includes('@')) {
+        return { error: 'Enter a valid UPI ID (e.g. name@upi).' };
+      }
+    } else {
+      if (!bankAccount) return { error: 'Bank account number is required.' };
+      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankIfsc?.toUpperCase())) {
+        return { error: 'Enter a valid IFSC code (e.g. SBIN0001234).' };
+      }
     }
   }
 
@@ -32,20 +36,25 @@ export async function completeProfile(formData: FormData) {
   if (!user) return { error: 'Not logged in.' };
 
   // Compliance Fix: Save sensitive PII to the hardened user_financials table
-  // instead of the public users table.
   const { error } = await supabase
     .from('user_financials')
     .upsert({
       id: user.id,
       phone_number: phone,
-      bank_account_number: payoutMethod === 'bank' ? bankAccount : null,
-      bank_ifsc: payoutMethod === 'bank' ? bankIfsc.toUpperCase() : null,
-      upi_id: payoutMethod === 'upi' ? upiId : null,
+      bank_account_number: (!isContactOnly && payoutMethod === 'bank') ? bankAccount : null,
+      bank_ifsc: (!isContactOnly && payoutMethod === 'bank') ? bankIfsc.toUpperCase() : null,
+      upi_id: (!isContactOnly && payoutMethod === 'upi') ? upiId : null,
       updated_at: new Date().toISOString()
     });
 
   if (error) return { error: error.message };
 
   revalidatePath('/', 'layout');
-  redirect('/market');
+  
+  // If they were completing profile to SELL, redirect them back to the sell page
+  if (!isContactOnly) {
+    redirect('/sell');
+  } else {
+    redirect('/market');
+  }
 }

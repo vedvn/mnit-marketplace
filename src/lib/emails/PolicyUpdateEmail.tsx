@@ -38,7 +38,7 @@ export default function PolicyUpdateEmail({
         </Text>
 
         <Button 
-          href={`${process.env.NEXT_PUBLIC_APP_URL || 'https://mnit-marketplace.in'}/${urlPath}`} 
+          href={`${process.env.NEXT_PUBLIC_APP_URL || 'https://mnitmarketplace.store'}/${urlPath}`} 
           style={buttonPrimary}
         >
           Read the Full {policyType} →

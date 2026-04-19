@@ -19,6 +19,11 @@ export default function CompleteProfilePage() {
     upi_id: '',
   });
 
+  // Institutional Intent Discovery
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const intent = searchParams?.get('intent');
+  const isSellerIntent = intent === 'sell';
+
   function update(key: string, val: string) {
     setFormData(prev => ({ ...prev, [key]: val }));
     setError(null);
@@ -48,9 +53,13 @@ export default function CompleteProfilePage() {
             <span className="bg-primary-600 text-white px-2 py-0.5 rounded-sm mr-2">MNIT</span>
             <span className="text-foreground">MARKETPLACE</span>
           </Link>
-          <h1 className="text-2xl font-bold mb-2 display-title uppercase">Complete Your Profile</h1>
+          <h1 className="text-2xl font-bold mb-2 display-title uppercase">
+            {isSellerIntent ? 'Activate Seller Payouts' : 'Complete Your Profile'}
+          </h1>
           <p className="text-foreground/60 text-sm max-w-xs mx-auto">
-            We need a few details to activate your account for buying and selling.
+            {isSellerIntent 
+              ? 'Provide your high-fidelity payout details to liquid-smoothly receive earnings from your listings.'
+              : 'We need a few details to activate your account for professional marketplace discovery.'}
           </p>
         </div>
 
@@ -112,21 +121,50 @@ export default function CompleteProfilePage() {
                     />
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!/^[6-9]\d{9}$/.test(formData.phone_number)) {
-                      setError('Enter a valid 10-digit Indian mobile number.');
-                      return;
-                    }
-                    setError(null);
-                    setStep(1);
-                  }}
-                  className="group flex items-center justify-center gap-2 w-full py-4 bg-primary-600 text-white font-bold text-xs uppercase tracking-widest hover:bg-primary-900 transition-colors mt-2"
-                >
-                  Next — Add Banking Details
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
+                <div className="flex flex-col gap-3 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!/^[6-9]\d{9}$/.test(formData.phone_number)) {
+                        setError('Enter a valid 10-digit Indian mobile number.');
+                        return;
+                      }
+                      setError(null);
+                      setStep(1);
+                    }}
+                    className="group flex items-center justify-center gap-2 w-full py-4 bg-primary-600 text-white font-bold text-xs uppercase tracking-widest hover:bg-primary-900 transition-colors"
+                  >
+                    {isSellerIntent ? 'Next — Add Banking Details' : 'Continue — Optional Payout Details'}
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </button>
+
+                  {!isSellerIntent && (
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={async () => {
+                        if (!/^[6-9]\d{9}$/.test(formData.phone_number)) {
+                          setError('Enter a valid 10-digit Indian mobile number.');
+                          return;
+                        }
+                        setLoading(true);
+                        const fd = new FormData();
+                        fd.append('phone_number', formData.phone_number);
+                        fd.append('is_contact_only', 'true');
+                        const result = await completeProfile(fd);
+                        if (result?.error) {
+                          setError(result.error);
+                          setLoading(false);
+                        }
+                      }}
+                      className="w-full py-3.5 border-2 border-primary-600/20 text-primary-600 font-bold text-xs uppercase tracking-widest hover:bg-primary-50 transition-colors flex items-center justify-center gap-2"
+                    >
+                      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                        <><CheckCircle2 className="w-4 h-4" /> Activate & Start Browsing</>
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 

@@ -67,49 +67,45 @@ export async function POST(request: NextRequest) {
     const internalSecret = process.env.INTERNAL_API_SECRET || '';
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 
+    // 6. Orchestrate High-Fidelity Institutional Notifications
+    const { 
+      triggerOrderConfirmedEmail, 
+      triggerItemSoldEmail, 
+      triggerItemReceivedReminder 
+    } = await import('@/lib/email-service');
+
     // 6a. Email buyer — order confirmed
-    fetch(`${appUrl}/api/email/order-confirmed`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-internal-secret': internalSecret },
-      body: JSON.stringify({
-        buyerEmail: buyer?.email,
-        buyerName: buyer?.name,
-        productTitle: (tx.product as any)?.title,
-        sellerName: (tx.seller as any)?.name,
-        sellerPhone: (tx.seller as any)?.phone_number,
-        amount: tx.amount_paid,
-        orderId: tx.id,
-      }),
-    }).catch(console.error);
+    triggerOrderConfirmedEmail(
+      buyer?.email || '',
+      buyer?.name || 'Student',
+      (tx.product as any)?.title,
+      (tx.seller as any)?.name,
+      (tx.seller as any)?.phone_number,
+      tx.amount_paid,
+      tx.id
+    ).catch(console.error);
 
     // 6b. Email seller — item sold
-    fetch(`${appUrl}/api/email/item-sold`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-internal-secret': internalSecret },
-      body: JSON.stringify({
-        sellerEmail: (tx.seller as any)?.email,
-        sellerName: (tx.seller as any)?.name,
-        buyerName: buyer?.name,
-        buyerPhone: buyer?.phone_number,
-        buyerEmail: buyer?.email,
-        productTitle: (tx.product as any)?.title,
-        amount: tx.amount_paid,
-        platformFee: tx.platform_fee,
-        payout: tx.seller_payout,
-      }),
-    }).catch(console.error);
+    triggerItemSoldEmail(
+      (tx.seller as any)?.email,
+      (tx.seller as any)?.name,
+      (tx.product as any)?.title,
+      tx.amount_paid,
+      tx.platform_fee,
+      tx.seller_payout,
+      buyer?.name || 'Student',
+      buyer?.phone_number || '',
+      buyer?.email || ''
+    ).catch(console.error);
 
-    // 6c. Email buyer — receipt instruction
-    fetch(`${appUrl}/api/email/item-received`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-internal-secret': internalSecret },
-      body: JSON.stringify({
-        email: buyer?.email,
-        name: buyer?.name,
-        productTitle: (tx.product as any)?.title,
-        sellerName: (tx.seller as any)?.name,
-      }),
-    }).catch(console.error);
+    // 6c. Email buyer — receipt instruction reminder
+    triggerItemReceivedReminder(
+      buyer?.email || '',
+      buyer?.name || 'Student',
+      (tx.product as any)?.title,
+      (tx.seller as any)?.name,
+      `${process.env.NEXT_PUBLIC_APP_URL}/profile`
+    ).catch(console.error);
 
     return NextResponse.json({ success: true, transactionId: tx.id });
 

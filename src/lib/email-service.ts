@@ -7,6 +7,9 @@ import ListingApprovedEmail from './emails/ListingApprovedEmail';
 import ListingRejectedEmail from './emails/ListingRejectedEmail';
 import ItemSoldEmail from './emails/ItemSoldEmail';
 import PayoutCompletedEmail from './emails/PayoutCompletedEmail';
+import SellerReceiptConfirmedEmail from './emails/SellerReceiptConfirmedEmail';
+import ItemReceivedEmail from './emails/ItemReceivedEmail';
+import OrderConfirmedEmail from './emails/OrderConfirmedEmail';
 
 /**
  * Direct Service Calls for Platform Emails
@@ -102,5 +105,53 @@ export async function triggerPayoutCompletedEmail(email: string, sellerName: str
     to: email,
     subject: `Payment Sent: ₹${amount} has been processed`,
     react: PayoutCompletedEmail({ sellerName, productTitle, amount }),
+  });
+}
+
+export async function triggerSellerReceiptConfirmedEmail(
+  email: string,
+  sellerName: string,
+  buyerName: string,
+  productTitle: string,
+  payoutAmount: number
+) {
+  console.log(`[EmailService] Triggering Seller Receipt Confirmed Email to ${email} for "${productTitle}"`);
+  return sendEmail({
+    to: email,
+    subject: `Action Confirmed: ${buyerName} received your item!`,
+    react: SellerReceiptConfirmedEmail({ sellerName, buyerName, productTitle, payoutAmount }),
+  });
+}
+
+export async function triggerOrderConfirmedEmail(
+  email: string,
+  buyerName: string,
+  productTitle: string,
+  sellerName: string,
+  sellerPhone: string,
+  amount: number,
+  orderId: string
+) {
+  console.log(`[EmailService] Triggering Order Confirmed Email to ${email} for "${productTitle}"`);
+  // Note: Assuming OrderConfirmedEmail template exists or is being refactored
+  return sendEmail({
+    to: email,
+    subject: `Order Confirmed: ${productTitle}`,
+    react: OrderConfirmedEmail({ buyerName, productTitle, sellerName, sellerPhone, amount, orderId }),
+  });
+}
+
+export async function triggerItemReceivedReminder(
+  email: string,
+  name: string,
+  productTitle: string,
+  sellerName: string,
+  confirmUrl: string
+) {
+  console.log(`[EmailService] Triggering Item Received Reminder Email to ${email}`);
+  return sendEmail({
+    to: email,
+    subject: `Reminder: Please confirm receipt of "${productTitle}"`,
+    react: ItemReceivedEmail({ buyerName: name, productTitle, sellerName, confirmUrl }),
   });
 }

@@ -331,9 +331,6 @@ export async function adminUpdatePayoutStatus(transactionId: string, status: 'PE
 
   // Trigger Seller Notification if COMPLETED
   if (status === 'COMPLETED') {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-    const internalSecret = process.env.INTERNAL_API_SECRET;
-
     const { data: txInfo } = await adminSupabase
       .from('transactions')
       .select(`
@@ -346,16 +343,14 @@ export async function adminUpdatePayoutStatus(transactionId: string, status: 'PE
 
     if (txInfo) {
       const seller = txInfo.seller as any;
-      fetch(`${appUrl}/api/email/payout-completed`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-internal-secret': internalSecret || '' },
-        body: JSON.stringify({
-          email: seller.email,
-          name: seller.name,
-          productTitle: (txInfo.product as any).title,
-          amount: txInfo.seller_payout
-        }),
-      }).catch(console.error);
+      const { triggerPayoutCompletedEmail } = await import('./email-service');
+      
+      triggerPayoutCompletedEmail(
+        seller.email,
+        seller.name,
+        (txInfo.product as any).title,
+        txInfo.seller_payout
+      ).catch(console.error);
     }
   }
 

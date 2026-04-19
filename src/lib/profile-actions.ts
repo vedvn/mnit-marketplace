@@ -35,7 +35,8 @@ export async function confirmReceipt(transactionId: string, productId: string) {
       amount_paid,
       seller_payout,
       product:products(title),
-      seller:users!seller_id(name),
+      seller:users!seller_id(name, email),
+      buyer:users!buyer_id(name),
       financials:user_financials!seller_id(upi_id, bank_account_number, bank_ifsc)
     `)
     .eq('id', transactionId)
@@ -43,9 +44,11 @@ export async function confirmReceipt(transactionId: string, productId: string) {
 
   if (txInfo) {
     const seller = txInfo.seller as any;
+    const buyer = txInfo.buyer as any;
     const financials = txInfo.financials as any;
     const payoutDetails = financials?.upi_id ? `UPI: ${financials.upi_id}` : `Bank: ${financials.bank_account_number} (${financials.bank_ifsc})`;
     
+    // 1. Notify Admin for Payout Scheduling
     fetch(`${appUrl}/api/email/payout-required`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-internal-secret': internalSecret || '' },
@@ -56,6 +59,16 @@ export async function confirmReceipt(transactionId: string, productId: string) {
         payoutDetails
       }),
     }).catch(console.error);
+
+    // 2. Notify Seller: Receipt Confirmed (Institutional Transition)
+    const { triggerSellerReceiptConfirmedEmail } = await import('./email-service');
+    triggerSellerReceiptConfirmedEmail(
+      seller.email,
+      seller.name,
+      buyer.name,
+      (txInfo.product as any).title,
+      txInfo.seller_payout
+    ).catch(console.error);
   }
 
   // Update product status to SOLD
@@ -211,6 +224,40 @@ export async function updateUserFinancials(formData: FormData) {
     });
 
   if (error) return { error: error.message };
+
+  // ─── INSTITUTIONAL AUDIENCE SYNC ───────────────────────────────────────────
+  // We synchronize the student with the Resend Broadcast Audience only when 
+  // their profile (Contact + Payout) is professionally completed.
+  try {
+    const adminSupabase = createAdminClient();
+    const { data: profile } = await adminSupabase
+      .from('users')
+      .select('email, name')
+      .eq('id', user.id)
+      .single();
+
+    if (profile && profile.email && phone && (upiId || (bankAccount && bankIfsc))) {
+      const { resend } = await import('@/lib/resend');
+      const audienceId = process.env.RESEND_AUDIENCE_ID;
+      
+      if (audienceId) {
+        // We UPSERT the contact in the audience
+        await resend.contacts.create({
+          email: profile.email,
+          firstName: profile.name.split(' ')[0],
+          lastName: profile.name.split(' ').slice(1).join(' ') || '',
+          unsubscribed: false,
+          audienceId: audienceId,
+        }).catch(err => {
+          // 409 Conflict is expected if they already exist, which is definitive success
+          if (err.statusCode !== 409) return;
+          throw err;
+        });
+      }
+    }
+  } catch (syncError) {
+    console.error('[Profile Actions] Resend Sync Error:', syncError);
+  }
 
   revalidatePath('/profile');
   return { success: true };

@@ -30,7 +30,7 @@ export default function ListingRejectedEmail({
         </Text>
 
         <Button 
-          href={`${process.env.NEXT_PUBLIC_APP_URL || 'https://mnit-marketplace.in'}/profile`} 
+          href={`${process.env.NEXT_PUBLIC_APP_URL || 'https://mnitmarketplace.store'}/profile`} 
           style={buttonPrimary}
         >
           Go to Dashboard →

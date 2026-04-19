@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       const batch = users.slice(i, i + BATCH_SIZE);
       
       const emailBatch = batch.map(user => ({
-        from: 'MNIT Marketplace <onboarding@resend.dev>',
+        from: 'MNIT Marketplace <noreply@mnitmarketplace.store>',
         to: user.email,
         replyTo: 'mnitmarketplace@gmail.com',
         subject: `Notice of Updates to ${policyType}`,

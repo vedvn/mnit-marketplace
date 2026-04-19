@@ -15,7 +15,7 @@ export default function WelcomeEmail({ name }: { name: string }) {
           You have successfully joined the campus marketplace. Start browsing items 
           listed by your peers, or sell something you no longer need.
         </Text>
-        <Button href={`${process.env.NEXT_PUBLIC_APP_URL || 'https://mnit-marketplace.in'}/market`} style={buttonPrimary}>
+        <Button href={`${process.env.NEXT_PUBLIC_APP_URL || 'https://mnitmarketplace.store'}/market`} style={buttonPrimary}>
           Browse the Market →
         </Button>
       </Section>

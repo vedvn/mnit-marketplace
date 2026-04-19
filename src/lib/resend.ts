@@ -13,7 +13,7 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, react }: SendEmailParams) {
   try {
-    const fromAddress = 'MNIT Marketplace <onboarding@resend.dev>';
+    const fromAddress = 'MNIT Marketplace <noreply@mnitmarketplace.store>';
     const { data, error } = await resend.emails.send({
       from: fromAddress,
       to,

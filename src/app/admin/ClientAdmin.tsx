@@ -23,9 +23,9 @@ export default function ClientAdmin() {
   const [broadcastSuccess, setBroadcastSuccess] = useState<string | null>(null);
   const [broadcastError, setBroadcastError] = useState<string | null>(null);
   const [broadcastData, setBroadcastData] = useState({
-    policyType: 'Terms & Conditions',
-    updatedDate: '',
-    summaryOfChanges: ''
+    subject: 'Broadcast: MNIT Marketplace Update',
+    messageHeading: 'Important Platform Notice',
+    messageBody: ''
   });
 
   // Category state
@@ -265,14 +265,14 @@ export default function ClientAdmin() {
   // Broadcast Action
   async function handleBroadcast(e: React.FormEvent) {
     e.preventDefault();
-    if (!confirm(`Are you sure you want to email ALL active users about the ${broadcastData.policyType} update?`)) return;
+    if (!confirm(`Are you sure you want to broadcast this message to ALL active users?`)) return;
 
     setIsBroadcasting(true);
     setBroadcastSuccess(null);
     setBroadcastError(null);
 
     try {
-      const res = await fetch('/api/email/policy-update', {
+      const res = await fetch('/api/email/broadcast', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -285,7 +285,7 @@ export default function ClientAdmin() {
       if (!res.ok) throw new Error(data.error || 'Broadcast failed');
 
       setBroadcastSuccess(`Successfully sent to ${data.sent} users.`);
-      setBroadcastData({ policyType: 'Terms & Conditions', updatedDate: '', summaryOfChanges: '' });
+      setBroadcastData({ subject: 'Broadcast: MNIT Marketplace Update', messageHeading: 'Important Platform Notice', messageBody: '' });
     } catch (err: any) {
       setBroadcastError(err.message);
     } finally {
@@ -975,40 +975,40 @@ export default function ClientAdmin() {
         <form onSubmit={handleBroadcast} className="glass-card p-8 rounded-2xl max-w-2xl mx-auto space-y-6 border border-black/5">
           <div className="flex items-center gap-3 mb-2">
             <Mail className="w-6 h-6 text-foreground/50" />
-            <h2 className="text-xl font-bold">Broadcast Policy Updates</h2>
+            <h2 className="text-xl font-bold">Campus-wide Broadcast</h2>
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-foreground/50">Policy Type</label>
-            <select
-              value={broadcastData.policyType}
-              onChange={(e) => setBroadcastData({ ...broadcastData, policyType: e.target.value as any })}
-              className="w-full p-3 bg-foreground/5 border border-black/5 rounded-xl outline-none focus:border-primary-500"
-            >
-              <option value="Terms & Conditions">Terms & Conditions</option>
-              <option value="Privacy Policy">Privacy Policy</option>
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-foreground/50">Effective Date</label>
+            <label className="text-xs font-bold uppercase tracking-wider text-foreground/50">Email Subject</label>
             <input
-              type="date"
               required
-              value={broadcastData.updatedDate}
-              onChange={(e) => setBroadcastData({ ...broadcastData, updatedDate: e.target.value })}
+              value={broadcastData.subject}
+              onChange={(e) => setBroadcastData({ ...broadcastData, subject: e.target.value })}
+              placeholder="e.g. Important Safety Update"
               className="w-full p-3 bg-foreground/5 border border-black/5 rounded-xl outline-none focus:border-primary-500"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-foreground/50">Summary of Changes</label>
+            <label className="text-xs font-bold uppercase tracking-wider text-foreground/50">Message Heading (Inside Email)</label>
+            <input
+              required
+              value={broadcastData.messageHeading}
+              onChange={(e) => setBroadcastData({ ...broadcastData, messageHeading: e.target.value })}
+              placeholder="e.g. Protocol Restoration Complete"
+              className="w-full p-3 bg-foreground/5 border border-black/5 rounded-xl outline-none focus:border-primary-500"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-foreground/50">Message Content</label>
             <textarea
               required
-              rows={4}
-              value={broadcastData.summaryOfChanges}
-              onChange={(e) => setBroadcastData({ ...broadcastData, summaryOfChanges: e.target.value })}
-              className="w-full p-3 bg-foreground/5 border border-black/5 rounded-xl outline-none focus:border-primary-500 font-mono text-sm"
+              rows={8}
+              value={broadcastData.messageBody}
+              onChange={(e) => setBroadcastData({ ...broadcastData, messageBody: e.target.value })}
+              placeholder="Draft your high-fidelity campus announcement..."
+              className="w-full p-3 bg-foreground/5 border border-black/5 rounded-xl outline-none focus:border-primary-500 font-sans text-sm leading-relaxed"
             />
           </div>
 
@@ -1017,7 +1017,7 @@ export default function ClientAdmin() {
             disabled={isBroadcasting}
             className="w-full py-4 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition flex items-center justify-center gap-2"
           >
-            {isBroadcasting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Broadcast To Active Users'}
+            {isBroadcasting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Launch Campus Broadcast'}
           </button>
 
           {broadcastSuccess && <div className="p-4 rounded-xl bg-emerald-500/10 text-emerald-700 font-medium text-sm text-center">{broadcastSuccess}</div>}
