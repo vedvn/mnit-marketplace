@@ -6,6 +6,9 @@ import { Loader2, ShieldBan, LogIn, ShieldCheck, IndianRupee } from 'lucide-reac
 import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { isDeliveryWindowOpen } from '@/lib/utils/time';
+import { DELIVERY_WINDOW_START_DISPLAY, DELIVERY_WINDOW_END_DISPLAY } from '@/lib/constants/delivery';
+import { useEffect } from 'react';
 
 interface Props {
   productId: string;
@@ -21,7 +24,15 @@ export default function CheckoutButton({ productId, price, isLoggedIn, productTi
   const [error, setError]     = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const pendingOrderId = useRef<string | null>(null);
+  const [isWindowOpen, setIsWindowOpen] = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    setIsWindowOpen(isDeliveryWindowOpen());
+    // Optional: Refresh periodically if user leaves page open
+    const interval = setInterval(() => setIsWindowOpen(isDeliveryWindowOpen()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (!isLoggedIn) {
     return (
@@ -196,6 +207,21 @@ export default function CheckoutButton({ productId, price, isLoggedIn, productTi
                You can still browse and list products
              </p>
            </div>
+        ) : !isWindowOpen ? (
+          <div className="p-8 bg-foreground/5 bento-border-t text-center">
+            <div className="flex justify-center mb-3">
+              <Clock className="w-8 h-8 text-foreground/40" />
+            </div>
+            <p className="text-xs font-black uppercase tracking-widest text-foreground/60 leading-relaxed">
+              Handover Window Closed
+            </p>
+            <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1">
+              P2P Delivery is strictly {DELIVERY_WINDOW_START_DISPLAY} — {DELIVERY_WINDOW_END_DISPLAY}
+            </p>
+            <p className="text-[9px] text-primary-600 font-bold uppercase tracking-widest mt-3 flex items-center justify-center gap-1">
+              <ShieldCheck className="w-3 h-3" /> Campus Safety Protocol
+            </p>
+          </div>
         ) : (
           <button
             onClick={() => { setError(null); setShowModal(true); setLoading(false); }}

@@ -8,6 +8,8 @@ import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
 import ProductCarousel from './ProductCarousel';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Metadata, ResolvingMetadata } from 'next';
+import DeliveryWindowBanner from '@/components/DeliveryWindowBanner';
+import ShareButton from '@/components/ShareButton';
 
 export async function generateMetadata(
   { params }: { params: Promise<{ id: string }> },
@@ -64,35 +66,48 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         &larr; Back to Market
       </Link>
 
+      <DeliveryWindowBanner />
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-0 sm:bento-border border-y border-black/5 sm:border-y-0">
-        {/* Images Column — Now a High-Fidelity Client Carousel */}
-        <ProductCarousel 
-          images={product.images || []} 
-          title={product.title} 
-          condition={product.condition} 
-        />
+        {/* Images Column — Now Sticky on Desktop */}
+        <div className="md:sticky md:top-24 h-fit">
+          <ProductCarousel 
+            images={product.images || []} 
+            title={product.title} 
+            condition={product.condition} 
+          />
+        </div>
 
         {/* Info Column */}
         <div className="flex flex-col bg-white">
-          <div className="p-6 sm:p-8 md:p-12 bento-border-b">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl display-title uppercase mb-4 sm:mb-6 leading-none wrap-break-word hyphens-auto">{product.title}</h1>
+          <div className="p-8 md:p-12 bento-border-b">
+              <div className="flex items-start justify-between mb-4 sm:mb-6">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl display-title uppercase leading-none wrap-break-word hyphens-auto pr-4">{product.title}</h1>
+                <div className="shrink-0 -mt-1">
+                  <ShareButton 
+                    title={product.title}
+                    text={`Check out this ${product.title} for ₹${product.price} on MNIT Marketplace!`}
+                    url={`/market/${product.id}`}
+                  />
+                </div>
+              </div>
             <div className="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-4 mb-2">
               <div className="flex items-start gap-1 sm:gap-2 text-primary-600 truncate">
-                <IndianRupee className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 mt-0.5 sm:mt-1 shrink-0" />
-                <span className="text-4xl sm:text-5xl md:text-6xl font-black truncate">{product.price}</span>
+                <IndianRupee className="w-6 h-6 sm:w-8 sm:h-8 mt-0.5 sm:mt-1 shrink-0" />
+                <span className="text-3xl sm:text-4xl md:text-5xl font-black truncate">{product.price}</span>
               </div>
               
               {product.original_price && product.original_price > product.price && (
                 <div className="flex items-center gap-3 pb-1 sm:pb-2">
                   <div className="flex flex-col">
-                    <span className="text-xs font-black uppercase tracking-widest text-foreground/30 leading-none mb-1">Original MRP</span>
-                    <span className="text-xl sm:text-2xl text-foreground/40 font-bold line-through decoration-foreground/30 truncate">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-foreground/30 leading-none mb-1">Original MRP</span>
+                    <span className="text-lg sm:text-xl text-foreground/40 font-bold line-through decoration-foreground/30 truncate">
                       ₹{product.original_price}
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-xs font-black uppercase tracking-widest text-emerald-600 leading-none mb-1">You Save ₹{Math.round(product.original_price - product.price)}</span>
-                    <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-500 font-black text-xs sm:text-sm uppercase tracking-widest rounded-md border border-emerald-500/20">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 leading-none mb-1">Save ₹{Math.round(product.original_price - product.price)}</span>
+                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 font-black text-[10px] sm:text-xs uppercase tracking-widest rounded-md border border-emerald-500/20">
                       {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
                     </span>
                   </div>

@@ -47,7 +47,6 @@ export const metadata: Metadata = {
 import NavBar from "@/components/NavBar";
 import { GoogleAnalytics } from '@next/third-parties/google';
 import InteractiveBackground from "@/components/InteractiveBackground";
-import CustomCursor from "@/components/CustomCursor";
 import Footer from "@/components/Footer";
 import MainLayout from "@/components/MainLayout";
 import { createAdminClient } from "@/lib/supabase/admin";

@@ -2,14 +2,14 @@
 
 import { useState, Fragment } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  X, 
-  AlertTriangle, 
-  MapPin, 
-  PackageCheck, 
-  ShieldCheck, 
-  CheckCircle2, 
-  Clock, 
+import {
+  X,
+  AlertTriangle,
+  MapPin,
+  PackageCheck,
+  ShieldCheck,
+  CheckCircle2,
+  Clock,
   ShoppingBag,
   UserCircle2,
   Calendar
@@ -38,7 +38,7 @@ export default function DisputeViewModal({ dispute, role }: DisputeViewModalProp
 
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-4 sm:p-6">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -66,19 +66,17 @@ export default function DisputeViewModal({ dispute, role }: DisputeViewModalProp
               <div className="overflow-y-auto p-8 sm:p-12 custom-scrollbar">
                 {/* Header */}
                 <div className="flex flex-wrap items-center gap-3 mb-6">
-                  <div className={`px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] rounded-full ${
-                    dispute.status === 'OPEN' ? 'bg-red-500/10 text-red-600' : 
-                    dispute.status === 'RESOLVED' ? 'bg-emerald-500/10 text-emerald-600' : 
-                    'bg-gray-100 text-gray-600'
-                  }`}>
+                  <div className={`px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] rounded-full ${dispute.status === 'OPEN' ? 'bg-red-500/10 text-red-600' :
+                      dispute.status === 'RESOLVED' ? 'bg-emerald-500/10 text-emerald-600' :
+                        'bg-gray-100 text-gray-600'
+                    }`}>
                     {dispute.status}
                   </div>
                   <div className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] rounded-full bg-primary-500/10 text-primary-600 border border-primary-500/10">
                     {dispute.category}
                   </div>
-                  <div className={`px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] rounded-full ${
-                    role === 'Buyer' ? 'bg-blue-500/10 text-blue-600' : 'bg-orange-500/10 text-orange-600'
-                  }`}>
+                  <div className={`px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] rounded-full ${role === 'Buyer' ? 'bg-blue-500/10 text-blue-600' : 'bg-orange-500/10 text-orange-600'
+                    }`}>
                     You as: {role}
                   </div>
                 </div>
@@ -114,7 +112,7 @@ export default function DisputeViewModal({ dispute, role }: DisputeViewModalProp
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-foreground/30" />
+                      <ShieldCheck className="w-4 h-4 text-foreground/30" />
                       <div>
                         <p className="text-[10px] uppercase font-black text-foreground/30 leading-none mb-0.5">Ticket ID</p>
                         <p className="text-[10px] font-mono font-medium truncate opacity-60">#{dispute.id.slice(0, 12).toUpperCase()}</p>
@@ -130,9 +128,9 @@ export default function DisputeViewModal({ dispute, role }: DisputeViewModalProp
                       <AlertTriangle className="w-3.5 h-3.5" /> Your Submitted Statement
                     </h4>
                     <div className="p-8 rounded-[32px] bg-primary-500/5 border border-primary-500/10 relative">
-                       <p className="text-lg leading-relaxed text-foreground/80 font-medium italic">
+                      <p className="text-lg leading-relaxed text-foreground/80 font-medium italic">
                         "{dispute.reason}"
-                       </p>
+                      </p>
                     </div>
                   </div>
 

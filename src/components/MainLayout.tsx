@@ -2,7 +2,6 @@
 
 import { usePathname } from 'next/navigation';
 import InteractiveBackground from "@/components/InteractiveBackground";
-import CustomCursor from "@/components/CustomCursor";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -36,7 +35,6 @@ export default function MainLayout({ children, navbar, footer, isBuyingDisabled 
         </div>
       )}
       <InteractiveBackground />
-      <CustomCursor />
       {navbar}
       {children}
       {footer}

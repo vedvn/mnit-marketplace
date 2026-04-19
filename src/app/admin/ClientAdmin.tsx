@@ -132,6 +132,14 @@ export default function ClientAdmin() {
     ];
   }, [dashboardData]);
 
+  const netRevenue = useMemo(() => {
+    if (!dashboardData) return 0;
+    const x = dashboardData.feePercent || 0;
+    const volume = dashboardData.totals.amountCollected || 0;
+    // Revenue is (X-2)% of selling cost as 2% is taken by razorpay
+    return Math.max(0, ((x - 2) / 100) * volume);
+  }, [dashboardData]);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -342,17 +350,24 @@ export default function ClientAdmin() {
       {/* ANALYTICS TAB */}
       {activeTab === 'analytics' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="glass-card p-6 rounded-2xl bento-border flex flex-col items-center justify-center text-center">
-              <IndianRupee className="w-5 h-5 text-emerald-500 mb-2" />
+              <IndianRupee className="w-5 h-5 text-foreground/50 mb-2" />
               <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 mb-1">Total Volume</p>
               <p className="text-2xl font-black">₹{dashboardData?.totals.amountCollected.toLocaleString()}</p>
             </div>
 
-            <div className="glass-card p-6 rounded-2xl bento-border flex flex-col items-center justify-center text-center">
+            <div className="glass-card p-6 rounded-2xl bento-border flex flex-col items-center justify-center text-center bg-foreground/2">
               <TrendingUp className="w-5 h-5 text-primary-500 mb-2" />
-              <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 mb-1">Platform Fees</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 mb-1">Platform Fees ({dashboardData?.feePercent || 0}%)</p>
               <p className="text-2xl font-black">₹{dashboardData?.totals.platformFees.toLocaleString()}</p>
+            </div>
+
+            <div className="glass-card p-6 rounded-2xl bento-border flex flex-col items-center justify-center text-center bg-emerald-500/5 ring-1 ring-inset ring-emerald-500/10">
+              <Activity className="w-5 h-5 text-emerald-500 mb-2" />
+              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1">Total Revenue (Net)</p>
+              <p className="text-2xl font-black text-emerald-600">₹{netRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-[8px] font-black uppercase tracking-tighter text-emerald-600/40 mt-1">({(dashboardData?.feePercent || 0) - 2}% Profit)</p>
             </div>
 
             <div className="glass-card p-6 rounded-2xl bento-border flex flex-col items-center justify-center text-center">
@@ -496,12 +511,12 @@ export default function ClientAdmin() {
                       <tr className={`hover:bg-foreground/5 transition-colors cursor-pointer ${expandedTx === tx.id ? 'bg-foreground/5' : ''}`} onClick={() => setExpandedTx(expandedTx === tx.id ? null : tx.id)}>
                         <td className="py-4 px-6 font-medium max-w-[150px] truncate">{tx.product?.title || 'Unknown'}</td>
                         <td className="py-4 px-6">
-                            <div className="text-xs font-bold">{tx.buyer?.name}</div>
-                            <div className="text-[9px] uppercase tracking-widest text-foreground/40 font-bold">{tx.buyer?.email}</div>
+                          <div className="text-xs font-bold">{tx.buyer?.name}</div>
+                          <div className="text-[9px] uppercase tracking-widest text-foreground/40 font-bold">{tx.buyer?.email}</div>
                         </td>
                         <td className="py-4 px-6">
-                            <div className="text-xs font-bold">{tx.seller?.name}</div>
-                            <div className="text-[9px] uppercase tracking-widest text-foreground/40 font-bold">{tx.seller?.email}</div>
+                          <div className="text-xs font-bold">{tx.seller?.name}</div>
+                          <div className="text-[9px] uppercase tracking-widest text-foreground/40 font-bold">{tx.seller?.email}</div>
                         </td>
                         <td className="py-4 px-6 font-black text-emerald-600">₹{tx.amount_paid}</td>
                         <td className="py-4 px-6">
@@ -1048,31 +1063,31 @@ export default function ClientAdmin() {
                       </div>
                     </div>
 
-                      <div className="space-y-4">
-                        <div className="p-4 rounded-xl bg-foreground/5 border border-black/5">
-                          <p className="text-[10px] uppercase font-bold text-foreground/40 mb-2 flex items-center gap-1">
-                            <ShieldCheck className="w-3 h-3" /> Decrypted Reason
-                          </p>
-                          <p className="text-sm leading-relaxed text-foreground/80 italic">"{d.reason}"</p>
-                        </div>
-
-                        {d.transaction && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
-                              <p className="text-[10px] uppercase font-black tracking-widest text-blue-600 mb-2">Buyer (Contact)</p>
-                              <p className="text-sm font-bold">{d.transaction.buyer?.name}</p>
-                              <p className="text-xs text-foreground/60">{d.transaction.buyer?.email}</p>
-                              <p className="text-xs text-foreground/60 font-mono mt-1">{d.transaction.buyer?.phone_number || 'No phone'}</p>
-                            </div>
-                            <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-                              <p className="text-[10px] uppercase font-black tracking-widest text-emerald-600 mb-2">Seller (Contact)</p>
-                              <p className="text-sm font-bold">{d.transaction.seller?.name}</p>
-                              <p className="text-xs text-foreground/60">{d.transaction.seller?.email}</p>
-                              <p className="text-xs text-foreground/60 font-mono mt-1">{d.transaction.seller?.phone_number || 'No phone'}</p>
-                            </div>
-                          </div>
-                        )}
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-xl bg-foreground/5 border border-black/5">
+                        <p className="text-[10px] uppercase font-bold text-foreground/40 mb-2 flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" /> Decrypted Reason
+                        </p>
+                        <p className="text-sm leading-relaxed text-foreground/80 italic">"{d.reason}"</p>
                       </div>
+
+                      {d.transaction && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
+                            <p className="text-[10px] uppercase font-black tracking-widest text-blue-600 mb-2">Buyer (Contact)</p>
+                            <p className="text-sm font-bold">{d.transaction.buyer?.name}</p>
+                            <p className="text-xs text-foreground/60">{d.transaction.buyer?.email}</p>
+                            <p className="text-xs text-foreground/60 font-mono mt-1">{d.transaction.buyer?.phone_number || 'No phone'}</p>
+                          </div>
+                          <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                            <p className="text-[10px] uppercase font-black tracking-widest text-emerald-600 mb-2">Seller (Contact)</p>
+                            <p className="text-sm font-bold">{d.transaction.seller?.name}</p>
+                            <p className="text-xs text-foreground/60">{d.transaction.seller?.email}</p>
+                            <p className="text-xs text-foreground/60 font-mono mt-1">{d.transaction.seller?.phone_number || 'No phone'}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                     {d.resolution && (
                       <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-emerald-800 text-sm italic">
@@ -1162,8 +1177,8 @@ export default function ClientAdmin() {
                 <button
                   onClick={() => handleUpdateSystem({ is_maintenance_mode: !dashboardData?.isMaintenanceMode })}
                   disabled={handleUpdateLoading}
-                  className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isMaintenanceMode 
-                    ? 'bg-white text-black hover:bg-gray-100 shadow-white/10' 
+                  className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isMaintenanceMode
+                    ? 'bg-white text-black hover:bg-gray-100 shadow-white/10'
                     : 'bg-black text-white hover:bg-black/80 shadow-black/10'}`}
                 >
                   {handleUpdateLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (dashboardData?.isMaintenanceMode ? 'Disable' : 'Enable')}
@@ -1195,8 +1210,8 @@ export default function ClientAdmin() {
                 <button
                   onClick={() => handleUpdateSystem({ is_buying_disabled: !dashboardData?.isBuyingDisabled })}
                   disabled={handleUpdateLoading}
-                  className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isBuyingDisabled 
-                    ? 'bg-white text-black hover:bg-gray-100 shadow-white/10' 
+                  className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isBuyingDisabled
+                    ? 'bg-white text-black hover:bg-gray-100 shadow-white/10'
                     : 'bg-primary-600 text-white hover:bg-primary-700 shadow-primary-600/10'}`}
                 >
                   {handleUpdateLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (dashboardData?.isBuyingDisabled ? 'Enable Buying' : 'Disable Buying')}
@@ -1228,8 +1243,8 @@ export default function ClientAdmin() {
                 <button
                   onClick={() => handleUpdateSystem({ is_holiday_mode: !dashboardData?.isHolidayMode })}
                   disabled={handleUpdateLoading}
-                  className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isHolidayMode 
-                    ? 'bg-white text-emerald-600 hover:bg-gray-100 shadow-white/10' 
+                  className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isHolidayMode
+                    ? 'bg-white text-emerald-600 hover:bg-gray-100 shadow-white/10'
                     : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/10'}`}
                 >
                   {handleUpdateLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (dashboardData?.isHolidayMode ? 'Disable Holiday' : 'Enable Holiday')}

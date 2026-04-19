@@ -5,12 +5,24 @@ import Link from 'next/link';
 import { MapPin, IndianRupee, Tag, Clock, ShieldCheck, Search, SlidersHorizontal, ShoppingCart } from 'lucide-react';
 import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
 import CheckoutButton from './[id]/CheckoutButton';
+import { isDeliveryWindowOpen } from '@/lib/utils/time';
+import { useEffect } from 'react';
+import { DELIVERY_WINDOW_START_DISPLAY, DELIVERY_WINDOW_END_DISPLAY } from '@/lib/constants/delivery';
+import ProductQuickView from '@/components/ProductQuickView';
+import ShareButton from '@/components/ShareButton';
 
 export default function MarketGrid({ initialProducts, categories, isLoggedIn, currentUserId }: { initialProducts: any[], categories: any[], isLoggedIn: boolean, currentUserId?: string }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [conditionFilter, setConditionFilter] = useState('');
   const [sortBy, setSortBy] = useState('newest');
+  const [isWindowOpen, setIsWindowOpen] = useState(true);
+
+  useEffect(() => {
+    setIsWindowOpen(isDeliveryWindowOpen());
+    const interval = setInterval(() => setIsWindowOpen(isDeliveryWindowOpen()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const filteredProducts = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
@@ -158,9 +170,20 @@ export default function MarketGrid({ initialProducts, categories, isLoggedIn, cu
                   </div>
                 )}
                 
+                <ProductQuickView product={product} isLoggedIn={isLoggedIn} />
+
                 <div className="absolute top-3 left-3 px-3 py-1 bg-white text-foreground text-[10px] font-bold uppercase tracking-wider bento-border shadow-sm">
                   {product.condition.replace('_', ' ')}
                 </div>
+
+                {!isWindowOpen && (
+                  <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
+                    <div className="bg-white/90 px-4 py-2 rounded-lg bento-border shadow-xl text-center">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-foreground/60 leading-tight">Delivery Window Closed</p>
+                      <p className="text-[8px] font-bold uppercase tracking-tighter text-foreground/40 mt-0.5">{DELIVERY_WINDOW_START_DISPLAY} – {DELIVERY_WINDOW_END_DISPLAY}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Content */}
@@ -185,11 +208,20 @@ export default function MarketGrid({ initialProducts, categories, isLoggedIn, cu
                   </div>
                 </div>
 
-                <div className="flex items-center text-[10px] font-bold uppercase tracking-wider text-foreground/50 mb-6 truncate">
-                  <MapPin className="w-3.5 h-3.5 mr-1.5" />
-                  <span>
-                    {CAMPUS_SAFE_ZONES.find(z => z.id === product.pickup_address.toLowerCase())?.name || product.pickup_address.replace('_', ' ')}
-                  </span>
+                <div className="flex items-center justify-between gap-2 mb-6 min-w-0">
+                  <div className="flex items-center text-[10px] font-bold uppercase tracking-wider text-foreground/50 truncate">
+                    <MapPin className="w-3.5 h-3.5 mr-1.5 shrink-0" />
+                    <span className="truncate">
+                      {CAMPUS_SAFE_ZONES.find(z => z.id === product.pickup_address.toLowerCase())?.name || product.pickup_address.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div className="shrink-0 -mr-2">
+                    <ShareButton 
+                      title={product.title}
+                      text={`Check out this ${product.title} for ₹${product.price} on MNIT Marketplace!`}
+                      url={`/market/${product.id}`}
+                    />
+                  </div>
                 </div>
 
               <div className="mt-auto pt-4 border-t border-black/5 flex flex-col gap-4">
