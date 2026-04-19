@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const adminSupabase = createAdminClient();
-  const baseUrl = 'https://mnit-marketplace.com';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mnitmarketplace.store';
 
   // 1. Fetch all active product IDs for dynamic marketplace routes
   const { data: products } = await adminSupabase
