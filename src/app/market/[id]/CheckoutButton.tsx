@@ -207,33 +207,28 @@ export default function CheckoutButton({ productId, price, isLoggedIn, productTi
                You can still browse and list products
              </p>
            </div>
-        ) : !isWindowOpen ? (
-          <div className="p-8 bg-foreground/5 bento-border-t text-center">
-            <div className="flex justify-center mb-3">
-              <Clock className="w-8 h-8 text-foreground/40" />
-            </div>
-            <p className="text-xs font-black uppercase tracking-widest text-foreground/60 leading-relaxed">
-              Handover Window Closed
-            </p>
-            <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1">
-              P2P Delivery is strictly {DELIVERY_WINDOW_START_DISPLAY} — {DELIVERY_WINDOW_END_DISPLAY}
-            </p>
-            <p className="text-[9px] text-primary-600 font-bold uppercase tracking-widest mt-3 flex items-center justify-center gap-1">
-              <ShieldCheck className="w-3 h-3" /> Campus Safety Protocol
-            </p>
-          </div>
         ) : (
-          <button
-            onClick={() => { setError(null); setShowModal(true); setLoading(false); }}
-            disabled={loading}
-            className={`w-full flex items-center justify-center gap-3 bg-primary-600 text-white font-bold uppercase tracking-widest hover:bg-primary-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-              variant === 'compact' ? 'py-3 text-[10px] rounded-lg' : 'h-16 text-sm'
-            }`}
-          >
-            {loading ? <Loader2 className={`animate-spin ${variant === 'compact' ? 'w-3.5 h-3.5' : 'w-5 h-5'}`} /> : (
-              <>Buy Now {variant !== 'compact' && `— ₹${price}`}</>
+          <div className="flex flex-col gap-2">
+            {!isWindowOpen && (
+              <div className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-2 mb-1">
+                <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <p className="text-[9px] font-bold uppercase tracking-widest text-amber-700">
+                  Note: Handovers will be scheduled after {DELIVERY_WINDOW_START_DISPLAY} IST.
+                </p>
+              </div>
             )}
-          </button>
+            <button
+              onClick={() => { setError(null); setShowModal(true); setLoading(false); }}
+              disabled={loading}
+              className={`w-full flex items-center justify-center gap-3 bg-primary-600 text-white font-bold uppercase tracking-widest hover:bg-primary-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                variant === 'compact' ? 'py-3 text-[10px] rounded-lg' : 'h-16 text-sm'
+              }`}
+            >
+              {loading ? <Loader2 className={`animate-spin ${variant === 'compact' ? 'w-3.5 h-3.5' : 'w-5 h-5'}`} /> : (
+                <>Buy Now {variant !== 'compact' && `— ₹${price}`}</>
+              )}
+            </button>
+          </div>
         )}
       </div>
     </>

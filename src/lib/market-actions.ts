@@ -3,22 +3,23 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getRazorpay } from '@/lib/razorpay';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, unstable_cache } from 'next/cache';
 
-export async function getProducts() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('products')
-    .select('*, seller:users(name, email)')
-    .eq('status', 'AVAILABLE')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching products:', error);
-    return [];
-  }
-  return data;
-}
+// Cached public product list — busted by revalidatePath('/market') on approve/reject/sell
+export const getProducts = unstable_cache(
+  async () => {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, seller:users(name, email)')
+      .eq('status', 'AVAILABLE')
+      .order('created_at', { ascending: false });
+    if (error) { console.error('Error fetching products:', error); return []; }
+    return data;
+  },
+  ['public-products-list'],
+  { revalidate: 60, tags: ['products'] } // 60s ISR + tag-based invalidation
+);
 
 export async function getProductById(id: string) {
   const supabase = await createClient();
@@ -35,24 +36,28 @@ export async function getProductById(id: string) {
   return data;
 }
 
-export async function getCategories() {
-  const supabase = await createClient();
-  const { data } = await supabase.from('categories').select('*');
-  return data || [];
-}
+// Cached categories list — very rarely changes
+export const getCategories = unstable_cache(
+  async () => {
+    const supabase = createAdminClient();
+    const { data } = await supabase.from('categories').select('*');
+    return data || [];
+  },
+  ['public-categories-list'],
+  { revalidate: 3600, tags: ['categories'] } // 1 hour — categories change very rarely
+);
 
 import { sanitizeText } from './security';
-import { CAMPUS_SAFE_ZONES, isWithinSafetyWindow } from './constants/locations';
+import { CAMPUS_SAFE_ZONES } from './constants/locations';
+import { findBlacklistedKeyword } from './constants/blacklist';
+import { triggerListingApprovedEmail } from './email-service';
 
 export async function createProduct(formData: FormData, imageUrls: string[], livePhotoUrl: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized' };
 
-  // 1. Compliance Check: Safety Window (Terms Section 04)
-  if (!isWithinSafetyWindow()) {
-    return { error: 'Listing restricted. All transactions and handovers must be scheduled between 7:00 AM and 9:00 PM.' };
-  }
+  // 1. Compliance Check: Listing is now permitted 24/7 (Handover protocols still apply to physical meetings)
 
   // 2. Security Guard: Rate Limiting
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -94,24 +99,55 @@ export async function createProduct(formData: FormData, imageUrls: string[], liv
 
   const category_id = formData.get('category_id') as string;
 
-  const { error } = await supabase.from('products').insert({
-    seller_id: user.id,
-    category_id,
-    title,
-    description,
-    condition,
-    pickup_address,
-    price,
-    original_price,
-    images: imageUrls,
-    live_photo_url: livePhotoUrl, // Note: Expecting a storage path from the private bucket here
-    status: 'PENDING_REVIEW'
-  });
+  // 5. Pre-screen: Blacklist keyword check on title + description
+  //    POLICY: Keyword hits flag for human review — never auto-reject.
+  const blacklistHit =
+    findBlacklistedKeyword(title) ||
+    findBlacklistedKeyword(description);
+
+  // 6. Insert product — queued for manual review by employee/admin
+  const { data: newProduct, error } = await supabase
+    .from('products')
+    .insert({
+      seller_id: user.id,
+      category_id,
+      title,
+      description,
+      condition,
+      pickup_address,
+      price,
+      original_price,
+      images: imageUrls,
+      live_photo_url: livePhotoUrl,
+      status: 'PENDING_REVIEW',
+    })
+    .select('id, title')
+    .single();
 
   if (error) return { error: error.message };
 
+  const productId = newProduct.id;
+
+  // 7. Fetch seller info for email notifications
+  const { data: sellerProfile } = await supabase
+    .from('users')
+    .select('name, email')
+    .eq('id', user.id)
+    .single();
+
+  // 8. Blacklist hit → flag for human review
+  if (blacklistHit) {
+    console.log(`[Review] Blacklist hit on "${blacklistHit}" for product ${productId} — queued for human review.`);
+    revalidatePath('/market');
+    revalidatePath('/employee');
+    return { success: true, status: 'PENDING_REVIEW', flagReason: `Keyword flagged: "${blacklistHit}"` };
+  }
+
+  // 9. All listings go to PENDING_REVIEW — manually approved by employee/admin
+  console.log(`[Review] Product ${productId} ("${title}") queued for manual review.`);
   revalidatePath('/market');
-  return { success: true };
+  revalidatePath('/employee');
+  return { success: true, status: 'PENDING_REVIEW' };
 }
 
 export async function createOrder(productId: string) {

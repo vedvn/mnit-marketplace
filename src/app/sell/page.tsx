@@ -9,7 +9,7 @@ import QRCode from 'react-qr-code';
 import { compressImage } from '@/lib/image-utils';
 
 
-import { CAMPUS_SAFE_ZONES, isWithinSafetyWindow } from '@/lib/constants/locations';
+import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
 
 
 export default function SellPage() {
@@ -116,11 +116,13 @@ export default function SellPage() {
     e.preventDefault();
     setError(null);
 
-    // 1. Compliance Check: Safety Window
+    // 1. Compliance Check: Safety Window (Removed - Listing allowed 24/7)
+    /*
     if (!isWithinSafetyWindow()) {
       setError("Marketplace safety window closed. Listings and handovers must be scheduled between 7:00 AM and 9:00 PM.");
       return;
     }
+    */
 
     // 2. Pricing Logic Check
     const sellingPrice = parseFloat(price);
@@ -213,10 +215,7 @@ export default function SellPage() {
     <div className="min-h-screen pt-24 pb-12 px-6 max-w-3xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight mb-2">Sell an Item</h1>
-        <p className="text-foreground/60">Professional review is active. All listings must follow campus safety protocols.</p>
-        <div className="mt-4 p-3 rounded-xl bg-primary-500/5 border border-primary-500/10 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary-600">
-           <Clock className="w-3.5 h-3.5"/> Safety Window Active: 07:00 AM — 09:00 PM IST
-        </div>
+        <p className="text-foreground/60">Professional review is active. All items are verified by campus moderators.</p>
       </div>
 
       <form ref={formRef} onSubmit={handlePreSubmit} className="glass-card p-8 rounded-3xl space-y-8 border border-black/5 shadow-xl">

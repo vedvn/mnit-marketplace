@@ -4,6 +4,7 @@ import AccountBannedEmail from './emails/AccountBannedEmail';
 import AccountUnbannedEmail from './emails/AccountUnbannedEmail';
 import ListingDeletedEmail from './emails/ListingDeletedEmail';
 import ListingApprovedEmail from './emails/ListingApprovedEmail';
+import ListingAutoApprovedEmail from './emails/ListingAutoApprovedEmail';
 import ListingRejectedEmail from './emails/ListingRejectedEmail';
 import ItemSoldEmail from './emails/ItemSoldEmail';
 import PayoutCompletedEmail from './emails/PayoutCompletedEmail';
@@ -59,6 +60,15 @@ export async function triggerListingApprovedEmail(email: string, name: string, p
     to: email,
     subject: `Success: Your listing "${productTitle}" is now live!`,
     react: ListingApprovedEmail({ name, productTitle, productId }),
+  });
+}
+
+export async function triggerListingAutoApprovedEmail(email: string, name: string, productTitle: string, productId: string) {
+  console.log(`[EmailService] Triggering AI Auto-Approved Email to ${email} for "${productTitle}"`);
+  return sendEmail({
+    to: email,
+    subject: `✅ Auto-Verified: Your listing "${productTitle}" is live!`,
+    react: ListingAutoApprovedEmail({ name, productTitle, productId }),
   });
 }
 

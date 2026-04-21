@@ -2,27 +2,21 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { MapPin, IndianRupee, Tag, Clock, ShieldCheck, Search, SlidersHorizontal, ShoppingCart } from 'lucide-react';
 import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
-import CheckoutButton from './[id]/CheckoutButton';
-import { isDeliveryWindowOpen } from '@/lib/utils/time';
-import { useEffect } from 'react';
-import { DELIVERY_WINDOW_START_DISPLAY, DELIVERY_WINDOW_END_DISPLAY } from '@/lib/constants/delivery';
 import ProductQuickView from '@/components/ProductQuickView';
-import ShareButton from '@/components/ShareButton';
+
+// Lazy-load below-fold interactive components — not needed for LCP or initial paint
+const CheckoutButton = dynamic(() => import('./[id]/CheckoutButton'), { ssr: false, loading: () => null });
+const ShareButton = dynamic(() => import('@/components/ShareButton'), { ssr: false, loading: () => null });
 
 export default function MarketGrid({ initialProducts, categories, isLoggedIn, currentUserId }: { initialProducts: any[], categories: any[], isLoggedIn: boolean, currentUserId?: string }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [conditionFilter, setConditionFilter] = useState('');
   const [sortBy, setSortBy] = useState('newest');
-  const [isWindowOpen, setIsWindowOpen] = useState(true);
-
-  useEffect(() => {
-    setIsWindowOpen(isDeliveryWindowOpen());
-    const interval = setInterval(() => setIsWindowOpen(isDeliveryWindowOpen()), 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   const filteredProducts = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
@@ -159,10 +153,14 @@ export default function MarketGrid({ initialProducts, categories, isLoggedIn, cu
               {/* Image Container */}
               <div className="aspect-4/3 w-full bg-foreground/5 relative overflow-hidden bento-border-b">
                 {product.images && product.images.length > 0 ? (
-                  <img 
+                  <Image 
                     src={product.images[0]} 
                     alt={product.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    className="object-cover transition-transform duration-500 ease-out [@media(hover:hover)]:group-hover:scale-105"
+                    loading="lazy"
+                    quality={75}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -176,14 +174,7 @@ export default function MarketGrid({ initialProducts, categories, isLoggedIn, cu
                   {product.condition.replace('_', ' ')}
                 </div>
 
-                {!isWindowOpen && (
-                  <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
-                    <div className="bg-white/90 px-4 py-2 rounded-lg bento-border shadow-xl text-center">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-foreground/60 leading-tight">Delivery Window Closed</p>
-                      <p className="text-[8px] font-bold uppercase tracking-tighter text-foreground/40 mt-0.5">{DELIVERY_WINDOW_START_DISPLAY} – {DELIVERY_WINDOW_END_DISPLAY}</p>
-                    </div>
-                  </div>
-                )}
+                {/* Delivery Window Overlay Removed (Market remains visible 24/7) */}
               </div>
 
               {/* Content */}

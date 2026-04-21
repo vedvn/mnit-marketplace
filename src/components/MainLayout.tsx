@@ -1,7 +1,13 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
-import InteractiveBackground from "@/components/InteractiveBackground";
+
+// Lazy-load: purely decorative, must never block SSR or initial hydration
+const InteractiveBackground = dynamic(() => import('@/components/InteractiveBackground'), {
+  ssr: false,
+  loading: () => null,
+});
 
 interface MainLayoutProps {
   children: React.ReactNode;

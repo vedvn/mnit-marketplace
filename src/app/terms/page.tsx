@@ -44,7 +44,7 @@ export default function TermsPage() {
         },
         {
           heading: "Prohibited Items",
-          body: "You must not list items that are illegal, stolen, hazardous, counterfeit, or otherwise not permitted to be sold within the MNIT campus. This includes, but is not limited to: prescription drugs, alcohol, weapons, copyrighted material, and any items that violate MNIT institutional rules.",
+          body: "You must not list items that are illegal, stolen, hazardous, counterfeit, or otherwise not permitted to be sold within the MNIT campus. The following categories are explicitly prohibited and will result in immediate listing removal and potential account suspension:\n\n• Alcohol, beer, wine, tobacco, cigarettes, or any intoxicants\n• Illegal drugs, narcotics, or controlled substances\n• Weapons of any kind — knives, blades, firearms, or any item designed to cause harm\n• Prescription medication, pharmaceutical drugs, or health supplements with unverified claims\n• Counterfeit, replica, pirated, or stolen goods of any kind\n• Adult content, pornography, or any sexually explicit material\n• Copyrighted digital content (pirated software, cracked apps, illegally copied media)\n• Any items that violate MNIT institutional rules or Indian law",
         },
         {
           heading: "Moderation Review",
@@ -117,6 +117,10 @@ export default function TermsPage() {
         {
           heading: "Prohibited Actions",
           body: "The following actions are strictly prohibited and will result in an immediate permanent ban: (a) Attempting to contact buyers or sellers to arrange payments outside of the Razorpay gateway; (b) Listing items that are not in your physical possession at the time of listing; (c) Using the platform for commercial, bulk, or business-related sales (this is a peer-to-peer student marketplace only); (d) Manipulating the review or moderation system through fake accounts or collusion; (e) Any form of harassment, hate speech, or abuse directed at other users or platform administrators; (f) Creating fake or 'test' listings; (g) Sharing your @mnit.ac.in account credentials with any other individual; (h) Using automated scripts, bots, or scraping tools to interact with the platform; (i) Providing false, misleading, or curated evidence during a dispute resolution process; (j) Any attempt to circumvent platform security measures or the platform safety hold system.",
+        },
+        {
+          heading: "Automated Content Screening",
+          body: "All listing titles and descriptions are automatically scanned by our content moderation system before submission. Listings containing flagged terms — including but not limited to: words associated with prohibited items (e.g. 'weapon', 'drugs', 'alcohol'), off-platform payment requests (e.g. 'pay outside', 'advance payment', 'UPI'), off-platform contact pressure (e.g. 'WhatsApp me', 'DM me'), or spam signals (e.g. 'guaranteed', 'urgent sale', 'no questions asked') — are automatically routed to PENDING_REVIEW for human moderation. This is not an automatic rejection; a human moderator will review every flagged listing. This system exists to protect buyers from scams and to maintain a safe, trustworthy marketplace.",
         },
         {
           heading: "Reporting Mechanism",

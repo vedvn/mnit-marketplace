@@ -17,6 +17,7 @@ import {
   MapPin
 } from 'lucide-react';
 import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
+import { findBlacklistedKeyword } from '@/lib/constants/blacklist';
 
 export default function ClientEmployee() {
   const [products, setProducts] = useState<any[]>([]);
@@ -25,6 +26,8 @@ export default function ClientEmployee() {
   const [activeTab, setActiveTab] = useState<'verification' | 'disputes' | 'sales'>('verification');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReasons, setRejectReasons] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (activeTab === 'verification') {
@@ -78,9 +81,10 @@ export default function ClientEmployee() {
     setActionLoading(null);
   }
 
-  async function handleReject(id: string) {
+  async function handleReject(id: string, reason: string) {
     setActionLoading(id);
-    await rejectProduct(id);
+    setRejectingId(null);
+    await rejectProduct(id, reason || 'Violates community guidelines');
     await fetchProducts();
     setActionLoading(null);
   }
@@ -134,8 +138,10 @@ export default function ClientEmployee() {
             </div>
           ) : (
             <div className="space-y-8">
-              {products.map(product => (
-                <div key={product.id} className="glass-card rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-black/5 shadow-xl flex flex-col lg:flex-row gap-8">
+              {products.map(product => {
+                const blacklistHit = findBlacklistedKeyword(product.title) || findBlacklistedKeyword(product.description || '');
+                return (
+                <div key={product.id} className={`glass-card rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col lg:flex-row gap-8 border shadow-xl ${blacklistHit ? 'border-amber-400/40 bg-amber-500/5' : 'border-black/5'}`}>
                   <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-1/2">
                     <div className="flex-1 space-y-2">
                       <span className="text-[10px] font-bold text-foreground/50 uppercase tracking-wider">Public Image</span>
@@ -153,6 +159,12 @@ export default function ClientEmployee() {
 
                   <div className="flex-1 flex flex-col">
                     <div className="mb-6">
+                      {blacklistHit && (
+                        <div className="flex items-center gap-1.5 mb-3 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg w-fit">
+                          <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Suspicious &mdash; keyword: &ldquo;{blacklistHit}&rdquo;</span>
+                        </div>
+                      )}
                       <h3 className="text-xl sm:text-2xl font-bold mb-2">{product.title}</h3>
                       <p className="text-primary-500 font-black text-lg sm:text-xl mb-4">₹{product.price}</p>
                       <p className="text-foreground/70 text-xs sm:text-sm whitespace-pre-line bg-foreground/5 p-4 rounded-xl border border-black/5 leading-relaxed">{product.description}</p>
@@ -171,25 +183,57 @@ export default function ClientEmployee() {
                       </div>
                     </div>
 
-                    <div className="mt-auto flex flex-col sm:flex-row gap-3 sm:gap-4">
-                      <button
-                        onClick={() => handleReject(product.id)}
-                        disabled={actionLoading === product.id}
-                        className="flex-1 py-3 sm:py-4 rounded-xl glass-card text-red-500 text-xs sm:text-sm font-bold hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2 border border-red-500/10"
-                      >
-                        {actionLoading === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><XCircle className="w-4 h-4 sm:w-5 sm:h-5" /> Reject Listing</>}
-                      </button>
-                      <button
-                        onClick={() => handleApprove(product.id)}
-                        disabled={actionLoading === product.id}
-                        className="flex-1 py-3 sm:py-4 rounded-xl bg-emerald-500 text-white text-xs sm:text-sm font-bold hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
-                      >
-                        {actionLoading === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" /> Approve & List</>}
-                      </button>
+                    <div className="mt-auto flex flex-col gap-3">
+                      {rejectingId === product.id ? (
+                        <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20 space-y-3">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-red-500">Rejection Reason</p>
+                          <textarea
+                            autoFocus
+                            rows={3}
+                            placeholder="e.g. Live photo does not match product images. Please re-list with a clear verification photo."
+                            value={rejectReasons[product.id] || ''}
+                            onChange={e => setRejectReasons(r => ({ ...r, [product.id]: e.target.value }))}
+                            className="w-full p-3 rounded-xl bg-white border border-red-500/20 outline-none focus:border-red-500 text-xs resize-none text-foreground"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setRejectingId(null)}
+                              className="flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest text-foreground/50 hover:text-foreground border border-black/10 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleReject(product.id, rejectReasons[product.id])}
+                              disabled={actionLoading === product.id}
+                              className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                              {actionLoading === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><XCircle className="w-4 h-4" /> Confirm Reject</>}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                          <button
+                            onClick={() => setRejectingId(product.id)}
+                            disabled={actionLoading === product.id}
+                            className="flex-1 py-3 sm:py-4 rounded-xl glass-card text-red-500 text-xs sm:text-sm font-bold hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2 border border-red-500/10"
+                          >
+                            <XCircle className="w-4 h-4 sm:w-5 sm:h-5" /> Reject Listing
+                          </button>
+                          <button
+                            onClick={() => handleApprove(product.id)}
+                            disabled={actionLoading === product.id}
+                            className="flex-1 py-3 sm:py-4 rounded-xl bg-emerald-500 text-white text-xs sm:text-sm font-bold hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                          >
+                            {actionLoading === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" /> Approve & List</>}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </>
