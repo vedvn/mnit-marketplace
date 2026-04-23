@@ -58,8 +58,8 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[AuthHook] Successfully sent ${emailType} email to ${email}`);
-    // Return empty 200 to tell Supabase the email was handled
-    return new NextResponse(null, { status: 200 });
+    // Supabase requires a JSON response with Content-Type header
+    return NextResponse.json({}, { status: 200 });
 
   } catch (err) {
     console.error('[AuthHook] Crash:', err);
