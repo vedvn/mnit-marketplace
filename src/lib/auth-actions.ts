@@ -25,13 +25,11 @@ export async function signUp(formData: FormData) {
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      data: { full_name: name },
-    },
+    options: { data: { full_name: name } },
   });
 
   if (error) {
-    if (error.message.includes('already registered')) {
+    if (error.message.includes('already registered') || error.message.includes('already been registered')) {
       return { error: 'An account with this email already exists. Please log in instead.' };
     }
     return { error: error.message };
