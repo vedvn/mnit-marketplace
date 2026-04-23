@@ -18,9 +18,26 @@ export async function POST(req: NextRequest) {
     const hookSecret = process.env.SUPABASE_AUTH_HOOK_SECRET;
     if (hookSecret) {
       const authHeader = req.headers.get('authorization');
-      if (!authHeader || authHeader !== `Bearer ${hookSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      
+      // Log for debugging (will show in Vercel logs / Terminal)
+      console.log('[AuthHook] Verifying Secret...');
+      
+      if (!authHeader) {
+        console.error('[AuthHook] Missing Authorization Header');
+        return NextResponse.json({ error: 'Hook requires authorization token' }, { status: 401 });
       }
+
+      // Handle both "Bearer <token>" and raw "<token>" formats
+      const providedSecret = authHeader.startsWith('Bearer ') 
+        ? authHeader.substring(7) 
+        : authHeader;
+
+      if (providedSecret !== hookSecret) {
+        console.error('[AuthHook] Secret Mismatch!');
+        return NextResponse.json({ error: 'Invalid authorization token' }, { status: 401 });
+      }
+      
+      console.log('[AuthHook] Secret Verified ✅');
     }
 
     const body = await req.json();
