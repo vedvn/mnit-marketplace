@@ -9,7 +9,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 export default function ClientAdmin() {
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'sellers' | 'verification' | 'broadcast' | 'categories' | 'disputes' | 'listings' | 'banned' | 'buyers' | 'system'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'sellers' | 'verification' | 'broadcast' | 'categories' | 'disputes' | 'listings' | 'banned' | 'buyers' | 'system' | 'engagement'>('analytics');
 
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [handleUpdateLoading, setHandleUpdateLoading] = useState(false);
@@ -314,7 +314,7 @@ export default function ClientAdmin() {
 
         {/* Tab Nav - Desktop */}
         <div className="hidden lg:flex flex-wrap gap-2 p-1 bg-foreground/5 rounded-xl self-start md:self-auto">
-          {['analytics', 'listings', 'sellers', 'buyers', 'banned', 'categories', 'verification', 'disputes', 'broadcast', 'system'].map(tab => (
+          {['analytics', 'engagement', 'listings', 'sellers', 'buyers', 'banned', 'categories', 'verification', 'disputes', 'broadcast', 'system'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as any)}
@@ -334,6 +334,7 @@ export default function ClientAdmin() {
             className="w-full p-4 bg-foreground/5 bento-border rounded-xl font-bold uppercase tracking-widest text-xs appearance-none outline-none focus:border-primary-600"
           >
             <option value="analytics">Analytics & Fees</option>
+            <option value="engagement">Engagement & Traffic</option>
             <option value="listings">All Listings</option>
             <option value="sellers">Active Sellers</option>
             <option value="buyers">Registered Buyers</option>
@@ -662,6 +663,104 @@ export default function ClientAdmin() {
         </div>
       )}
 
+      {/* ENGAGEMENT TAB */}
+      {activeTab === 'engagement' && (
+        <div className="space-y-8 animate-in fade-in duration-500">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Top Products Ranking */}
+            <div className="glass-card p-6 rounded-2xl bento-border h-fit">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-primary-500" />
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/50">Top Trending Products</h3>
+                </div>
+                <div className="text-[10px] font-black text-foreground/30 uppercase tracking-tighter">Based on Views + Intent</div>
+              </div>
+              <div className="space-y-4">
+                {dashboardData?.analytics?.topProducts?.map((p: any, i: number) => (
+                  <div key={p.product_id} className="flex items-center justify-between p-4 rounded-xl bg-foreground/2 border border-black/5 hover:bg-foreground/5 transition-colors group">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${i === 0 ? 'bg-amber-400 text-white shadow-lg shadow-amber-400/20' : i === 1 ? 'bg-slate-300 text-white' : i === 2 ? 'bg-amber-700/40 text-white' : 'bg-foreground/10 text-foreground/40'}`}>
+                        {i + 1}
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm truncate max-w-[150px] sm:max-w-xs">{p.title}</p>
+                        <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest">{p.category_name}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6 text-right">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black text-foreground">{p.views}</span>
+                        <span className="text-[8px] uppercase font-bold text-foreground/30 tracking-widest">Views</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black text-primary-600">{p.interactions}</span>
+                        <span className="text-[8px] uppercase font-bold text-primary-600/40 tracking-widest">Intent</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {(!dashboardData?.analytics?.topProducts || dashboardData.analytics.topProducts.length === 0) && (
+                  <div className="py-12 text-center text-foreground/30 italic text-sm">Not enough data to rank products yet.</div>
+                )}
+              </div>
+            </div>
+
+            {/* Page Traffic Overview */}
+            <div className="glass-card p-6 rounded-2xl bento-border h-fit">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-blue-500" />
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/50">Site Traffic by Path</h3>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {dashboardData?.analytics?.topPages?.map((page: any) => (
+                  <div key={page.path} className="flex flex-col gap-1 p-3 rounded-xl hover:bg-foreground/5 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-bold text-foreground/70 truncate max-w-[200px]">{page.path}</span>
+                      <span className="text-xs font-black">{page.total_views.toLocaleString()} visits</span>
+                    </div>
+                    <div className="w-full h-1 bg-foreground/5 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500 rounded-full"
+                        style={{ width: `${Math.min(100, (page.total_views / (dashboardData.analytics.topPages[0]?.total_views || 1)) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Category Wise Top Performers */}
+          <div className="glass-card p-8 rounded-2xl bento-border">
+            <div className="flex items-center gap-2 mb-8">
+              <PieChartIcon className="w-5 h-5 text-emerald-500" />
+              <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/50">Category Hotspots</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {dashboardData?.categories?.map((cat: any) => {
+                const topInCat = dashboardData?.analytics?.topProducts?.find((p: any) => p.category_id === cat.id);
+                return (
+                  <div key={cat.id} className="p-4 rounded-xl bg-foreground/2 border border-black/5 flex flex-col justify-between">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-foreground/40 mb-3">{cat.name}</h4>
+                    {topInCat ? (
+                      <div>
+                        <p className="text-xs font-bold truncate mb-1">{topInCat.title}</p>
+                        <p className="text-[10px] font-black text-emerald-600">Leader ({topInCat.views} views)</p>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] italic text-foreground/20">No activity yet</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* SELLERS TAB */}
       {activeTab === 'sellers' && (
         <div className="space-y-6">
@@ -896,62 +995,62 @@ export default function ClientAdmin() {
             {products.map(product => {
               const blacklistHit = findBlacklistedKeyword(product.title) || findBlacklistedKeyword(product.description || '');
               return (
-              <div key={product.id} className={`glass-card p-4 sm:p-6 rounded-2xl flex flex-col shadow-sm border ${blacklistHit ? 'border-amber-400/50 bg-amber-500/5' : 'border-black/5'}`}>
-                {/* Suspicious flag */}
-                {blacklistHit && (
-                  <div className="flex items-center gap-1.5 mb-3 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg w-fit">
-                    <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Suspicious — keyword: "{blacklistHit}"</span>
-                  </div>
-                )}
-                <div className="flex gap-4 mb-3 items-start">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-foreground/5 rounded-xl overflow-hidden shrink-0 bento-border">
-                    {product.images?.[0] ? <img src={product.images[0]} className="w-full h-full object-cover" /> : null}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-sm sm:text-base line-clamp-1">{product.title}</h4>
-                    <p className="text-primary-600 font-bold text-xs sm:text-sm mb-1">₹{product.price}</p>
-                    <p className="text-[10px] text-foreground/50 truncate">Seller: {product.seller?.name}</p>
-                  </div>
-                </div>
-                {/* Description */}
-                {product.description && (
-                  <p className="text-xs text-foreground/60 leading-relaxed bg-foreground/5 rounded-lg p-3 mb-3 line-clamp-3 border border-black/5">
-                    {product.description}
-                  </p>
-                )}
-                <div className="mt-auto pt-4 border-t border-black/5">
-                  {rejectingId === product.id ? (
-                    <div className="space-y-2">
-                      <textarea
-                        autoFocus
-                        rows={2}
-                        placeholder="Reason for rejection (sent to seller)..."
-                        value={rejectReasons[product.id] || ''}
-                        onChange={e => setRejectReasons(r => ({ ...r, [product.id]: e.target.value }))}
-                        className="w-full p-2.5 rounded-lg bg-white border border-red-500/20 outline-none focus:border-red-500 text-xs resize-none text-foreground"
-                      />
-                      <div className="flex gap-2">
-                        <button onClick={() => setRejectingId(null)} className="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border border-black/10 rounded-lg text-foreground/50 hover:text-foreground transition-colors">
-                          Cancel
-                        </button>
-                        <button onClick={() => handleReject(product.id, rejectReasons[product.id])} disabled={actionLoading === product.id} className="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center transition-colors">
-                          {actionLoading === product.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Confirm Reject'}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <button onClick={() => setRejectingId(product.id)} disabled={actionLoading === product.id} className="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest bg-red-50 text-red-600 rounded-lg hover:bg-red-100 flex items-center justify-center gap-1 transition-colors">
-                        Reject
-                      </button>
-                      <button onClick={() => handleApprove(product.id)} disabled={actionLoading === product.id} className="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1 transition-colors shadow-md shadow-emerald-600/10">
-                        {actionLoading === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Approve'}
-                      </button>
+                <div key={product.id} className={`glass-card p-4 sm:p-6 rounded-2xl flex flex-col shadow-sm border ${blacklistHit ? 'border-amber-400/50 bg-amber-500/5' : 'border-black/5'}`}>
+                  {/* Suspicious flag */}
+                  {blacklistHit && (
+                    <div className="flex items-center gap-1.5 mb-3 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg w-fit">
+                      <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Suspicious — keyword: "{blacklistHit}"</span>
                     </div>
                   )}
+                  <div className="flex gap-4 mb-3 items-start">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-foreground/5 rounded-xl overflow-hidden shrink-0 bento-border">
+                      {product.images?.[0] ? <img src={product.images[0]} className="w-full h-full object-cover" /> : null}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-sm sm:text-base line-clamp-1">{product.title}</h4>
+                      <p className="text-primary-600 font-bold text-xs sm:text-sm mb-1">₹{product.price}</p>
+                      <p className="text-[10px] text-foreground/50 truncate">Seller: {product.seller?.name}</p>
+                    </div>
+                  </div>
+                  {/* Description */}
+                  {product.description && (
+                    <p className="text-xs text-foreground/60 leading-relaxed bg-foreground/5 rounded-lg p-3 mb-3 line-clamp-3 border border-black/5">
+                      {product.description}
+                    </p>
+                  )}
+                  <div className="mt-auto pt-4 border-t border-black/5">
+                    {rejectingId === product.id ? (
+                      <div className="space-y-2">
+                        <textarea
+                          autoFocus
+                          rows={2}
+                          placeholder="Reason for rejection (sent to seller)..."
+                          value={rejectReasons[product.id] || ''}
+                          onChange={e => setRejectReasons(r => ({ ...r, [product.id]: e.target.value }))}
+                          className="w-full p-2.5 rounded-lg bg-white border border-red-500/20 outline-none focus:border-red-500 text-xs resize-none text-foreground"
+                        />
+                        <div className="flex gap-2">
+                          <button onClick={() => setRejectingId(null)} className="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border border-black/10 rounded-lg text-foreground/50 hover:text-foreground transition-colors">
+                            Cancel
+                          </button>
+                          <button onClick={() => handleReject(product.id, rejectReasons[product.id])} disabled={actionLoading === product.id} className="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center transition-colors">
+                            {actionLoading === product.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Confirm Reject'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button onClick={() => setRejectingId(product.id)} disabled={actionLoading === product.id} className="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest bg-red-50 text-red-600 rounded-lg hover:bg-red-100 flex items-center justify-center gap-1 transition-colors">
+                          Reject
+                        </button>
+                        <button onClick={() => handleApprove(product.id)} disabled={actionLoading === product.id} className="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1 transition-colors shadow-md shadow-emerald-600/10">
+                          {actionLoading === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Approve'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
               );
             })}
           </div>
@@ -1346,7 +1445,11 @@ export default function ClientAdmin() {
                     onClick={async () => {
                       const { runSystemJanitor } = await import('@/lib/admin-janitor');
                       const res = await runSystemJanitor();
-                      if (res.success) alert('Janitor successfully cleaned the system!');
+                      if (res.success) {
+                        alert(`Janitor Report:\n\nStatus: ${res.status}\nItems Archived: ${res.archivedCount}\nTime: ${new Date(res.timestamp || '').toLocaleTimeString()}`);
+                      } else {
+                        alert(`Janitor Error: ${res.error}`);
+                      }
                     }}
                     className="px-6 py-3 rounded-xl bg-white text-black border-2 border-black/5 hover:border-black/20 text-[10px] font-black uppercase tracking-widest transition shadow-xl"
                   >

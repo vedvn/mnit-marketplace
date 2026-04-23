@@ -27,5 +27,9 @@ export default async function AdminPage() {
     return <PasswordForm title="Super Admin Control" action={verifyAdminPassword} />;
   }
 
+  // Trigger Janitor on admin visit (cleanup & archiving)
+  const { runSystemJanitor } = await import('@/lib/admin-janitor');
+  runSystemJanitor(); // Run in background
+
   return <ClientAdmin />;
 }

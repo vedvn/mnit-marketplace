@@ -97,6 +97,17 @@ export async function getAdminDashboardData() {
   // 6. Categories
   const { data: categories } = await adminSupabase.from('categories').select('*').order('name');
 
+  // 7. Analytics Rankings
+  const { data: topProducts } = await adminSupabase
+    .from('v_product_performance')
+    .select('*')
+    .limit(10);
+
+  const { data: topPages } = await adminSupabase
+    .from('v_page_traffic')
+    .select('*')
+    .limit(10);
+
   return {
     success: true,
     sellers: allUsers?.filter(u => sellerIds.includes(u.id)) || [],
@@ -113,6 +124,10 @@ export async function getAdminDashboardData() {
     totals: {
       amountCollected: totalAmountCollected,
       platformFees: totalPlatformFees
+    },
+    analytics: {
+      topProducts: topProducts || [],
+      topPages: topPages || []
     }
   };
 }

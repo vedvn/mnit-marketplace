@@ -10,6 +10,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { Metadata, ResolvingMetadata } from 'next';
 import DeliveryWindowBanner from '@/components/DeliveryWindowBanner';
 import ShareButton from '@/components/ShareButton';
+import ProductInteractionTracker from '@/components/ProductInteractionTracker';
 
 export async function generateMetadata(
   { params }: { params: Promise<{ id: string }> },
@@ -33,15 +34,28 @@ export async function generateMetadata(
     openGraph: {
       title: `${product.title} | MNIT Marketplace`,
       description: description,
-      images: product.images?.[0] ? [product.images[0]] : [],
+      url: `https://mnitmarketplace.store/market/${product.id}`,
+      siteName: 'MNIT Marketplace',
+      images: product.images?.[0] ? [
+        {
+          url: product.images[0].startsWith('http') ? product.images[0] : `https://mnitmarketplace.store${product.images[0]}`,
+          width: 1200,
+          height: 630,
+          alt: product.title,
+        }
+      ] : [],
       type: 'article',
     },
     twitter: {
       card: 'summary_large_image',
       title: product.title,
       description: description,
-      images: product.images?.[0] ? [product.images[0]] : [],
+      images: product.images?.[0] ? [product.images[0].startsWith('http') ? product.images[0] : `https://mnitmarketplace.store${product.images[0]}`] : [],
     },
+    other: {
+      'product:price:amount': product.price.toString(),
+      'product:price:currency': 'INR',
+    }
   };
 }
 
@@ -50,8 +64,6 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const product = await getProductById(id);
   if (!product) notFound();
 
-  // Orchestrate high-fidelity interaction audit (non-owner only)
-  await recordProductInteraction(id);
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -181,6 +193,13 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
       </div>
+      
+      {/* Compliance-respecting interaction tracking */}
+      <ProductInteractionTracker 
+        productId={product.id} 
+        categoryId={product.category_id} 
+        isOwner={isOwner} 
+      />
     </div>
   );
 }

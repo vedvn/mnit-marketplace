@@ -241,32 +241,35 @@ export async function deleteProduct(productId: string) {
   return { success: true };
 }
 
+import { logAnalyticsEvent } from './analytics-actions';
+
 export async function recordProductInteraction(productId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Anonymous' };
-
-  // Fetch product to verify owner
+  // Anonymous users can also interact, but we mark it.
+  
+  // Fetch product to verify owner and get category
   const { data: product, error: fetchError } = await supabase
     .from('products')
-    .select('seller_id')
+    .select('seller_id, category_id')
     .eq('id', productId)
     .single();
 
   if (fetchError || !product) return { error: 'Product not found' };
 
-  // Definitive Owner Exclusion Audit
-  if (product.seller_id === user.id) {
+  // Owner exclusion
+  if (user && product.seller_id === user.id) {
     return { success: true, message: 'Owner interaction excluded' };
   }
 
-  // Orchestrate hardware-accelerated atomic increment via RPC
-  const { error: rpcError } = await supabase.rpc('increment_product_interactions', { p_id: productId });
-
-  if (rpcError) {
-    console.error('Interactions Increment Error:', rpcError);
-    return { error: rpcError.message };
-  }
+  // Log to new analytics system
+  await logAnalyticsEvent(
+    'PRODUCT_INTERACTION', 
+    `/market/${productId}`, 
+    productId, 
+    product.category_id, 
+    { source: 'PRODUCT_DETAIL', userId: user?.id || 'anonymous' }
+  );
 
   return { success: true };
 }

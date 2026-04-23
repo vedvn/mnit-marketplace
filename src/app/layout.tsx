@@ -94,7 +94,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_IN',
-    url: 'https://mnit-marketplace.com',
+    url: 'https://mnitmarketplace.store',
     siteName: 'MNIT Marketplace',
     title: 'MNIT Marketplace | Exclusive Campus Marketplace',
     description: 'The secure and independent campus marketplace for MNIT students.',
@@ -113,7 +113,6 @@ export const metadata: Metadata = {
 };
 
 import NavBar from "@/components/NavBar";
-import { GoogleAnalytics } from '@next/third-parties/google';
 import InteractiveBackground from "@/components/InteractiveBackground";
 import Footer from "@/components/Footer";
 import MainLayout from "@/components/MainLayout";
@@ -133,6 +132,11 @@ const getCachedAdminSettings = unstable_cache(
   { revalidate: 3600 } // 1 hour — admin_settings rarely changes; revalidatePath busts this on toggle
 );
 
+import { Suspense } from "react";
+import AnalyticsTracker from "@/components/AnalyticsTracker";
+import CookieConsent from "@/components/CookieConsent";
+import GoogleAnalyticsTracker from "@/components/GoogleAnalyticsTracker";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -145,6 +149,7 @@ export default async function RootLayout({
     <html
       lang="en"
       className={`${inter.variable} ${outfit.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <head>
         {/* Preconnect to Supabase to eliminate TCP+TLS handshake latency on first DB query */}
@@ -158,9 +163,13 @@ export default async function RootLayout({
         footer={<Footer />}
         isBuyingDisabled={isBuyingDisabled}
       >
+        <Suspense fallback={null}>
+          <AnalyticsTracker />
+          <CookieConsent />
+        </Suspense>
         {children}
       </MainLayout>
-      <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID || "G-YOUR_TRACKING_ID"} />
+      <GoogleAnalyticsTracker gaId={process.env.NEXT_PUBLIC_GA_ID || "G-YOUR_TRACKING_ID"} />
     </html>
   );
 }
