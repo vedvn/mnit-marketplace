@@ -11,7 +11,6 @@ import PayoutCompletedEmail from './emails/PayoutCompletedEmail';
 import SellerReceiptConfirmedEmail from './emails/SellerReceiptConfirmedEmail';
 import ItemReceivedEmail from './emails/ItemReceivedEmail';
 import OrderConfirmedEmail from './emails/OrderConfirmedEmail';
-import OtpEmail from './emails/OtpEmail';
 
 /**
  * Direct Service Calls for Platform Emails
@@ -164,23 +163,5 @@ export async function triggerItemReceivedReminder(
     to: email,
     subject: `Reminder: Please confirm receipt of "${productTitle}"`,
     react: ItemReceivedEmail({ buyerName: name, productTitle, sellerName, confirmUrl }),
-  });
-}
-
-export async function triggerSignupOtpEmail(email: string, otp: string, name?: string) {
-  console.log(`[EmailService] Triggering Signup OTP Email to ${email}`);
-  return sendEmail({
-    to: email,
-    subject: 'Your MNIT Marketplace verification code',
-    react: OtpEmail({ otp, type: 'signup', name }),
-  });
-}
-
-export async function triggerPasswordResetOtpEmail(email: string, otp: string) {
-  console.log(`[EmailService] Triggering Password Reset OTP Email to ${email}`);
-  return sendEmail({
-    to: email,
-    subject: 'Reset your MNIT Marketplace password',
-    react: OtpEmail({ otp, type: 'reset' }),
   });
 }
