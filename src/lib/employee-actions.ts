@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { logSecurityEvent } from './admin-janitor';
+import { runAIVerificationForProduct } from './ai-verify-runner';
 
 // Helper to verify that the user is an employee or admin
 async function verifyStaffClearance() {
@@ -194,4 +195,20 @@ export async function banUser(userId: string, reason: string = 'Fraudulent activ
 
   revalidatePath('/employee');
   return { success: true };
+}
+
+export async function triggerAIReview(productId: string) {
+  if (!await verifyStaffClearance()) return { error: 'Unauthorized' };
+
+  try {
+    // Runs the full AI pipeline: analyze photos → auto-approve if clean, alert admin if flagged
+    await runAIVerificationForProduct(productId);
+    revalidatePath('/employee');
+    revalidatePath('/admin');
+    revalidatePath('/market');
+    return { success: true };
+  } catch (err: any) {
+    console.error('[triggerAIReview] Failed:', err);
+    return { error: err.message || 'AI review failed' };
+  }
 }

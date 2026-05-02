@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getPendingProducts, approveProduct, rejectProduct } from '@/lib/employee-actions';
+import { getPendingProducts, approveProduct, rejectProduct, triggerAIReview } from '@/lib/employee-actions';
 import { getDisputeData, adminResolveDispute } from '@/lib/admin-actions';
 import {
   Loader2,
@@ -14,7 +14,8 @@ import {
   ShoppingBag,
   Clock,
   User,
-  MapPin
+  MapPin,
+  Bot
 } from 'lucide-react';
 import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
 import { findBlacklistedKeyword } from '@/lib/constants/blacklist';
@@ -85,6 +86,14 @@ export default function ClientEmployee() {
     setActionLoading(id);
     setRejectingId(null);
     await rejectProduct(id, reason || 'Violates community guidelines');
+    await fetchProducts();
+    setActionLoading(null);
+  }
+
+  async function handleAIReview(id: string) {
+    setActionLoading(`ai-${id}`);
+    const result = await triggerAIReview(id);
+    if (result?.error) alert(`AI Review failed: ${result.error}`);
     await fetchProducts();
     setActionLoading(null);
   }
@@ -212,21 +221,31 @@ export default function ClientEmployee() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                        <div className="flex flex-col gap-3">
                           <button
-                            onClick={() => setRejectingId(product.id)}
-                            disabled={actionLoading === product.id}
-                            className="flex-1 py-3 sm:py-4 rounded-xl glass-card text-red-500 text-xs sm:text-sm font-bold hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2 border border-red-500/10"
+                            id={`ai-review-${product.id}`}
+                            onClick={() => handleAIReview(product.id)}
+                            disabled={!!actionLoading}
+                            className="w-full py-3 rounded-xl bg-violet-500/10 text-violet-600 text-xs font-bold hover:bg-violet-500/20 transition-colors flex items-center justify-center gap-2 border border-violet-500/20"
                           >
-                            <XCircle className="w-4 h-4 sm:w-5 sm:h-5" /> Reject Listing
+                            {actionLoading === `ai-${product.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Bot className="w-4 h-4" /> Run AI Review</>}
                           </button>
-                          <button
-                            onClick={() => handleApprove(product.id)}
-                            disabled={actionLoading === product.id}
-                            className="flex-1 py-3 sm:py-4 rounded-xl bg-emerald-500 text-white text-xs sm:text-sm font-bold hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
-                          >
-                            {actionLoading === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" /> Approve & List</>}
-                          </button>
+                          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                            <button
+                              onClick={() => setRejectingId(product.id)}
+                              disabled={!!actionLoading}
+                              className="flex-1 py-3 sm:py-4 rounded-xl glass-card text-red-500 text-xs sm:text-sm font-bold hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2 border border-red-500/10"
+                            >
+                              <XCircle className="w-4 h-4 sm:w-5 sm:h-5" /> Reject Listing
+                            </button>
+                            <button
+                              onClick={() => handleApprove(product.id)}
+                              disabled={!!actionLoading}
+                              className="flex-1 py-3 sm:py-4 rounded-xl bg-emerald-500 text-white text-xs sm:text-sm font-bold hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                            >
+                              {actionLoading === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" /> Approve & List</>}
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>

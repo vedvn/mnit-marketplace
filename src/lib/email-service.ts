@@ -11,6 +11,7 @@ import PayoutCompletedEmail from './emails/PayoutCompletedEmail';
 import SellerReceiptConfirmedEmail from './emails/SellerReceiptConfirmedEmail';
 import ItemReceivedEmail from './emails/ItemReceivedEmail';
 import OrderConfirmedEmail from './emails/OrderConfirmedEmail';
+import AdminProductAlertEmail from './emails/AdminProductAlertEmail';
 
 /**
  * Direct Service Calls for Platform Emails
@@ -163,5 +164,43 @@ export async function triggerItemReceivedReminder(
     to: email,
     subject: `Reminder: Please confirm receipt of "${productTitle}"`,
     react: ItemReceivedEmail({ buyerName: name, productTitle, sellerName, confirmUrl }),
+  });
+}
+
+export async function triggerAdminProductAlertEmail({
+  adminEmail,
+  productId,
+  productTitle,
+  sellerName,
+  sellerEmail,
+  aiSummary,
+  aiFlags,
+  aiConfidence,
+  adminUrl,
+}: {
+  adminEmail: string;
+  productId: string;
+  productTitle: string;
+  sellerName: string;
+  sellerEmail: string;
+  aiSummary: string;
+  aiFlags: string[];
+  aiConfidence: 'high' | 'medium' | 'low';
+  adminUrl: string;
+}) {
+  console.log(`[EmailService] Triggering Admin Product Alert to ${adminEmail} for "${productTitle}"`);
+  return sendEmail({
+    to: adminEmail,
+    subject: `⚠️ AI Flagged: "${productTitle}" needs manual review`,
+    react: AdminProductAlertEmail({
+      productId,
+      productTitle,
+      sellerName,
+      sellerEmail,
+      aiSummary,
+      aiFlags,
+      aiConfidence,
+      adminUrl,
+    }),
   });
 }

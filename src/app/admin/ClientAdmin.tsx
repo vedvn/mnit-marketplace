@@ -2,9 +2,9 @@
 
 import { useState, useEffect, Fragment, useMemo } from 'react';
 import { getAdminDashboardData, adminBanUser, adminUnbanUser, adminDeleteTransaction, adminCreateCategory, adminDeleteCategory, adminUpdatePayoutStatus, getDisputeData, adminResolveDispute, adminDeleteProduct, adminUpdateGlobalSettings } from '@/lib/admin-actions';
-import { getPendingProducts, approveProduct, rejectProduct } from '@/lib/employee-actions';
+import { getPendingProducts, approveProduct, rejectProduct, triggerAIReview } from '@/lib/employee-actions';
 import { findBlacklistedKeyword } from '@/lib/constants/blacklist';
-import { Loader2, ShieldAlert, ShieldCheck, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users, Trash2, Tag, PlusCircle, ChevronDown, ChevronUp, CheckCircle2, Clock, CreditCard, ExternalLink, Phone, Copy, Check, AlertTriangle, PieChart as PieChartIcon, Activity, HardHat, RefreshCcw } from 'lucide-react';
+import { Loader2, ShieldAlert, ShieldCheck, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users, Trash2, Tag, PlusCircle, ChevronDown, ChevronUp, CheckCircle2, Clock, CreditCard, ExternalLink, Phone, Copy, Check, AlertTriangle, PieChart as PieChartIcon, Activity, HardHat, RefreshCcw, Bot } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 
 export default function ClientAdmin() {
@@ -179,6 +179,14 @@ export default function ClientAdmin() {
     setActionLoading(id);
     setRejectingId(null);
     await rejectProduct(id, reason || 'Violates community guidelines');
+    await fetchData();
+    setActionLoading(null);
+  }
+
+  async function handleAIReview(id: string) {
+    setActionLoading(`ai-${id}`);
+    const result = await triggerAIReview(id);
+    if (result?.error) alert(`AI Review failed: ${result.error}`);
     await fetchData();
     setActionLoading(null);
   }
@@ -1040,13 +1048,23 @@ export default function ClientAdmin() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex gap-2">
-                        <button onClick={() => setRejectingId(product.id)} disabled={actionLoading === product.id} className="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest bg-red-50 text-red-600 rounded-lg hover:bg-red-100 flex items-center justify-center gap-1 transition-colors">
-                          Reject
+                      <div className="flex flex-col gap-2">
+                        <button
+                          id={`admin-ai-review-${product.id}`}
+                          onClick={() => handleAIReview(product.id)}
+                          disabled={!!actionLoading}
+                          className="w-full py-2 text-[10px] font-bold uppercase tracking-widest bg-violet-500/10 text-violet-600 rounded-lg hover:bg-violet-500/20 flex items-center justify-center gap-1.5 transition-colors border border-violet-500/20"
+                        >
+                          {actionLoading === `ai-${product.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Bot className="w-3.5 h-3.5" /> AI Review</>}
                         </button>
-                        <button onClick={() => handleApprove(product.id)} disabled={actionLoading === product.id} className="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1 transition-colors shadow-md shadow-emerald-600/10">
-                          {actionLoading === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Approve'}
-                        </button>
+                        <div className="flex gap-2">
+                          <button onClick={() => setRejectingId(product.id)} disabled={!!actionLoading} className="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest bg-red-50 text-red-600 rounded-lg hover:bg-red-100 flex items-center justify-center gap-1 transition-colors">
+                            Reject
+                          </button>
+                          <button onClick={() => handleApprove(product.id)} disabled={!!actionLoading} className="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1 transition-colors shadow-md shadow-emerald-600/10">
+                            {actionLoading === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Approve'}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

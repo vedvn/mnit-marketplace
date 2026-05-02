@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getRazorpay } from '@/lib/razorpay';
 import { revalidatePath, unstable_cache } from 'next/cache';
+import { after } from 'next/server';
+import { runAIVerificationForProduct } from '@/lib/ai-verify-runner';
 
 // Cached public product list — busted by revalidatePath('/market') on approve/reject/sell
 export const getProducts = unstable_cache(
@@ -135,7 +137,7 @@ export async function createProduct(formData: FormData, imageUrls: string[], liv
     .eq('id', user.id)
     .single();
 
-  // 8. Blacklist hit → flag for human review
+  // 8. Blacklist hit → flag for human review (skip AI, send straight to employee queue)
   if (blacklistHit) {
     console.log(`[Review] Blacklist hit on "${blacklistHit}" for product ${productId} — queued for human review.`);
     revalidatePath('/market');
@@ -143,8 +145,17 @@ export async function createProduct(formData: FormData, imageUrls: string[], liv
     return { success: true, status: 'PENDING_REVIEW', flagReason: `Keyword flagged: "${blacklistHit}"` };
   }
 
-  // 9. All listings go to PENDING_REVIEW — manually approved by employee/admin
-  console.log(`[Review] Product ${productId} ("${title}") queued for manual review.`);
+  // 9. Schedule AI verification to run AFTER the response is sent to the seller.
+  //    Uses Next.js `after()` — runs in-process, no HTTP hop, works in dev + production.
+  after(async () => {
+    try {
+      await runAIVerificationForProduct(productId);
+    } catch (err) {
+      console.error('[createProduct] AI verification failed for product', productId, ':', err);
+    }
+  });
+
+  console.log(`[Review] Product ${productId} ("${title}") submitted — AI verification scheduled via after().`);
   revalidatePath('/market');
   revalidatePath('/employee');
   return { success: true, status: 'PENDING_REVIEW' };
