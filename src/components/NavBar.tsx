@@ -27,6 +27,7 @@ export default async function NavBar({ isBuyingDisabled }: { isBuyingDisabled?: 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-8 font-bold text-xs uppercase tracking-widest text-foreground/70">
           <Link href="/market" className="hover:text-primary-600 transition-colors">Market</Link>
+          <Link href="/notes" className="hover:text-primary-600 transition-colors">Notes</Link>
           <Link href="/about" className="hover:text-primary-600 transition-colors">How it Works</Link>
           
           {user && (

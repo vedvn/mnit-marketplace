@@ -17,6 +17,7 @@ export default function MobileNav({ user, dbUser }: { user: any, dbUser: any }) 
       {isOpen && (
         <div className="absolute top-16 left-0 right-0 bg-white bento-border-b shadow-2xl px-6 py-6 flex flex-col gap-6 text-sm font-bold uppercase tracking-widest text-foreground z-50">
           <Link href="/market" onClick={() => setIsOpen(false)} className="hover:text-primary-600 transition-colors">Market</Link>
+          <Link href="/notes" onClick={() => setIsOpen(false)} className="hover:text-primary-600 transition-colors">Notes</Link>
           <Link href="/about" onClick={() => setIsOpen(false)} className="hover:text-primary-600 transition-colors">How it Works</Link>
           {user && <Link href="/profile" onClick={() => setIsOpen(false)} className="text-primary-600">Profile & Listings</Link>}
           {dbUser?.is_employee && <Link href="/employee" onClick={() => setIsOpen(false)} className="text-accent">Desk</Link>}
