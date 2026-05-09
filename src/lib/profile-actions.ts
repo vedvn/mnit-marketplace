@@ -32,6 +32,7 @@ export async function confirmReceipt(transactionId: string, productId: string) {
   const { data: txInfo } = await adminSupabase
     .from('transactions')
     .select(`
+      product_id,
       amount_paid,
       seller_payout,
       product:products(title),
@@ -42,40 +43,41 @@ export async function confirmReceipt(transactionId: string, productId: string) {
     .eq('id', transactionId)
     .single();
 
-  if (txInfo) {
-    const seller = txInfo.seller as any;
-    const buyer = txInfo.buyer as any;
-    const financials = txInfo.financials as any;
-    const payoutDetails = financials?.upi_id ? `UPI: ${financials.upi_id}` : `Bank: ${financials.bank_account_number} (${financials.bank_ifsc})`;
-    
-    // 1. Notify Admin for Payout Scheduling
-    fetch(`${appUrl}/api/email/payout-required`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-internal-secret': internalSecret || '' },
-      body: JSON.stringify({
-        sellerName: seller.name,
-        productTitle: (txInfo.product as any).title,
-        amount: txInfo.seller_payout,
-        payoutDetails
-      }),
-    }).catch(console.error);
+  if (!txInfo) return { error: 'Transaction record not found' };
 
-    // 2. Notify Seller: Receipt Confirmed (Institutional Transition)
-    const { triggerSellerReceiptConfirmedEmail } = await import('./email-service');
-    triggerSellerReceiptConfirmedEmail(
-      seller.email,
-      seller.name,
-      buyer.name,
-      (txInfo.product as any).title,
-      txInfo.seller_payout
-    ).catch(console.error);
-  }
+  const seller = txInfo.seller as any;
+  const buyer = txInfo.buyer as any;
+  const financials = txInfo.financials as any;
+  const payoutDetails = financials?.upi_id ? `UPI: ${financials.upi_id}` : `Bank: ${financials.bank_account_number} (${financials.bank_ifsc})`;
+  
+  // 1. Notify Admin for Payout Scheduling
+  fetch(`${appUrl}/api/email/payout-required`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-internal-secret': internalSecret || '' },
+    body: JSON.stringify({
+      sellerName: seller.name,
+      productTitle: (txInfo.product as any).title,
+      amount: txInfo.seller_payout,
+      payoutDetails
+    }),
+  }).catch(console.error);
 
-  // Update product status to SOLD
+  // 2. Notify Seller: Receipt Confirmed (Institutional Transition)
+  const { triggerSellerReceiptConfirmedEmail } = await import('./email-service');
+  triggerSellerReceiptConfirmedEmail(
+    seller.email,
+    seller.name,
+    buyer.name,
+    (txInfo.product as any).title,
+    txInfo.seller_payout
+  ).catch(console.error);
+
+  // Update product status to SOLD (Strictly bound to transaction's product)
+  const productToUpdate = (txInfo.product as any); // We already fetched this in txInfo
   await adminSupabase
     .from('products')
     .update({ status: 'SOLD', sold_at: new Date().toISOString() })
-    .eq('id', productId);
+    .eq('id', (txInfo as any).product_id || productId); // Fallback to productId but preferred the one from the verified transaction
 
   revalidatePath('/profile');
   return { success: true };
@@ -83,7 +85,7 @@ export async function confirmReceipt(transactionId: string, productId: string) {
 
 /**
  * Compliance Section 06 / DPDP Act: 30-day "Right to be Forgotten" request handler.
- * Flags the account for permanent removal by the janitor service.
+ * Flags the account for permanent removal.
  */
 export async function requestAccountDeletion() {
   const supabase = await createClient();
@@ -105,6 +107,12 @@ export async function markProductSold(productId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized' };
+
+  // 0. Security Guard: Holiday Mode Check
+  const { data: settings } = await supabase.from('admin_settings').select('is_holiday_mode').single();
+  if (settings?.is_holiday_mode) {
+    return { error: 'Listing updates are disabled during the holiday break.' };
+  }
 
   // Sellers can update their own products directly via RLS, but we enforce seller_id
   const { error } = await supabase

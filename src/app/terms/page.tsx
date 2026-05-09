@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldCheck, AlertTriangle, Ban, CreditCard, Camera, Scale, UserCheck, Clock, ArrowLeft, Mail as MailIcon, Lock, Database, MapPin, FileSearch } from "lucide-react";
+import { ShieldCheck, AlertTriangle, Ban, CreditCard, Camera, Scale, UserCheck, Clock, ArrowLeft, Mail as MailIcon, Lock, Database, MapPin, FileSearch, BookOpen } from "lucide-react";
 
 export const metadata = {
   title: "Terms & Conditions | MNIT Marketplace",
@@ -313,6 +313,38 @@ export default function TermsPage() {
         {
           heading: "Entire Agreement",
           body: "These Terms & Conditions constitute the entire and exclusive agreement between you and the MNIT Marketplace Platform Administration regarding the use of the platform, superseding and replacing any prior agreements, oral or written, between the parties regarding the subject matter.",
+        },
+      ],
+    },
+    {
+      id: "notes-hub",
+      icon: BookOpen,
+      number: "15",
+      title: "MNIT Notes Hub",
+      content: [
+        {
+          heading: "Nature of the Notes Hub",
+          body: "The MNIT Notes Hub is a free, community-driven academic resource library embedded within the MNIT Marketplace platform. It allows verified MNIT students to upload and download study materials including lecture notes, previous year question papers (PYPs), and reference documents. Access to browse the Notes Hub is available to all users, including non-logged-in visitors.",
+        },
+        {
+          heading: "Content Ownership & License",
+          body: "By uploading notes or any academic material to the Notes Hub, you confirm that you are the original creator of, or have explicit permission to share, the uploaded content. You retain ownership of your content but grant MNIT Marketplace a non-exclusive, royalty-free license to host, display, and distribute the material to other MNIT students through the platform.",
+        },
+        {
+          heading: "Uploader Obligations",
+          body: "You must not upload: (a) Copyrighted textbooks, papers, or materials without explicit permission from the rights holder; (b) Content that is obscene, defamatory, or discriminatory; (c) Materials belonging to other students without their consent; (d) Any file that contains malware, viruses, or malicious code. Violation of these obligations may result in content removal and account suspension.",
+        },
+        {
+          heading: "Anonymous Sharing",
+          body: "The Notes Hub offers an optional anonymous posting mode. When a note is posted anonymously, your name will not be displayed on the note card. However, your identity remains linked to the upload in our internal records for accountability and moderation purposes.",
+        },
+        {
+          heading: "No Academic Misconduct",
+          body: "The Notes Hub is intended solely to supplement legitimate academic study. Sharing materials that facilitate academic misconduct — including but not limited to: exam papers leaked before the exam date, lab reports intended for submission, or any material whose distribution violates MNIT academic integrity policies — is strictly prohibited and may be reported to the institute.",
+        },
+        {
+          heading: "Content Moderation",
+          body: "MNIT Marketplace reserves the right to remove any uploaded material from the Notes Hub at any time, for any reason, without prior notice. This includes but is not limited to: copyright-infringing material, inappropriate content, or material flagged by users as harmful or misleading.",
         },
       ],
     },

@@ -30,11 +30,7 @@ export default async function NavBar({ isBuyingDisabled }: { isBuyingDisabled?: 
           <Link href="/notes" className="hover:text-primary-600 transition-colors">Notes</Link>
           <Link href="/about" className="hover:text-primary-600 transition-colors">How it Works</Link>
           
-          {user && (
-            <Link href="/profile" className="hover:text-primary-600 transition-colors text-primary-600">
-              Profile & Listings
-            </Link>
-          )}
+
 
           {dbUser?.is_employee && (
              <Link href="/employee" className="hover:text-accent transition-colors text-accent">
@@ -47,15 +43,20 @@ export default async function NavBar({ isBuyingDisabled }: { isBuyingDisabled?: 
         <div className="flex items-center gap-2">
           <div className="hidden md:flex items-center gap-2">
             {user ? (
-              <form action={signOut}>
-                <button 
-                  type="submit"
-                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-none bg-foreground/5 text-foreground font-bold hover:bg-foreground hover:text-background transition-all text-[10px] sm:text-xs uppercase tracking-widest bento-border"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Logout</span>
-                </button>
-              </form>
+              <>
+                <Link href="/profile" title="Profile & Listings" className="p-1.5 text-foreground/50 hover:text-primary-600 transition-colors">
+                  <UserCircle className="w-5 h-5" />
+                </Link>
+                <form action={signOut}>
+                  <button
+                    type="submit"
+                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-none bg-foreground/5 text-foreground font-bold hover:bg-foreground hover:text-background transition-all text-[10px] sm:text-xs uppercase tracking-widest bento-border"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Logout</span>
+                  </button>
+                </form>
+              </>
             ) : (
               <Link 
                 href="/login" 

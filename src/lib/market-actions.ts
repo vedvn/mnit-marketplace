@@ -6,6 +6,7 @@ import { getRazorpay } from '@/lib/razorpay';
 import { revalidatePath, unstable_cache } from 'next/cache';
 import { after } from 'next/server';
 import { runAIVerificationForProduct } from '@/lib/ai-verify-runner';
+import { getAdminSettingsCached } from '@/lib/settings';
 
 // Cached public product list — busted by revalidatePath('/market') on approve/reject/sell
 export const getProducts = unstable_cache(
@@ -49,6 +50,11 @@ export const getCategories = unstable_cache(
   { revalidate: 3600, tags: ['categories'] } // 1 hour — categories change very rarely
 );
 
+export async function getPlatformFeePercent() {
+  const settings = await getAdminSettingsCached();
+  return settings?.platform_fee_percent || 5;
+}
+
 import { sanitizeText } from './security';
 import { CAMPUS_SAFE_ZONES } from './constants/locations';
 import { findBlacklistedKeyword } from './constants/blacklist';
@@ -74,8 +80,8 @@ export async function createProduct(formData: FormData, imageUrls: string[], liv
   }
 
   // 0a. Security Guard: Holiday Mode Check
-  const { data: settings } = await supabase.from('admin_settings').select('is_maintenance_mode').single();
-  if (settings?.is_maintenance_mode) {
+  const settings = await getAdminSettingsCached();
+  if (settings?.is_maintenance_mode || settings?.is_holiday_mode) {
     return { error: 'Marketplace is currently closed for maintenance/holiday break.' };
   }
 
@@ -184,10 +190,10 @@ export async function createOrder(productId: string) {
   if (product.seller_id === user.id) return { error: 'You cannot buy your own product' };
 
   // Fetch admin settings for platforms flags
-  const { data: adminSettings } = await supabase.from('admin_settings').select('*').single();
+  const adminSettings = await getAdminSettingsCached();
   
-  if (adminSettings?.is_buying_disabled) {
-    return { error: 'Orders are currently disabled due to technical maintenance. Please check back later.' };
+  if (adminSettings?.is_buying_disabled || adminSettings?.is_maintenance_mode || adminSettings?.is_holiday_mode) {
+    return { error: 'Orders are currently disabled due to maintenance or holiday break. Please check back later.' };
   }
 
   const platformFeePercent = adminSettings?.platform_fee_percent ?? 5; // default 5%
@@ -238,6 +244,12 @@ export async function deleteProduct(productId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized' };
 
+  // 0a. Security Guard: Holiday Mode Check
+  const settings = await getAdminSettingsCached();
+  if (settings?.is_maintenance_mode || settings?.is_holiday_mode) {
+    return { error: 'Listing modifications are disabled during maintenance/holiday break.' };
+  }
+
   // Allow deleting if PENDING_REVIEW or AVAILABLE
   const { error } = await supabase
     .from('products')
@@ -252,35 +264,46 @@ export async function deleteProduct(productId: string) {
   return { success: true };
 }
 
-import { logAnalyticsEvent } from './analytics-actions';
-
+/**
+ * Records a high-fidelity interaction event for a product.
+ * Used for internal analytics and ranking algorithms.
+ */
 export async function recordProductInteraction(productId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  // Anonymous users can also interact, but we mark it.
+  const supabaseClient = await createClient();
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return; // Only log authenticated interactions to prevent bot spam
+
+  const supabase = createAdminClient();
   
-  // Fetch product to verify owner and get category
-  const { data: product, error: fetchError } = await supabase
+  // ── Security Guard: Rate Limiting (Prevent Analytics Spam) ───────────────
+  const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  const { count: recentInteraction } = await supabase
+    .from('site_analytics')
+    .select('*', { count: 'exact', head: true })
+    .eq('event_type', 'PRODUCT_INTERACTION')
+    .eq('metadata->>user_id', user.id)
+    .eq('product_id', productId)
+    .gt('created_at', fifteenMinsAgo);
+
+  if ((recentInteraction || 0) > 0) return; // Cooldown active
+
+  // 1. Fetch category_id for segment analytics
+  const { data: product } = await supabase
     .from('products')
-    .select('seller_id, category_id')
+    .select('category_id')
     .eq('id', productId)
     .single();
 
-  if (fetchError || !product) return { error: 'Product not found' };
+  if (!product) return;
 
-  // Owner exclusion
-  if (user && product.seller_id === user.id) {
-    return { success: true, message: 'Owner interaction excluded' };
-  }
-
-  // Log to new analytics system
-  await logAnalyticsEvent(
-    'PRODUCT_INTERACTION', 
-    `/market/${productId}`, 
-    productId, 
-    product.category_id, 
-    { source: 'PRODUCT_DETAIL', userId: user?.id || 'anonymous' }
-  );
-
-  return { success: true };
+  // 2. Log interaction to site_analytics
+  await supabase.from('site_analytics').insert({
+    event_type: 'PRODUCT_INTERACTION',
+    path: `/market/${productId}`,
+    product_id: productId,
+    category_id: product.category_id,
+    metadata: { source: 'QuickView', user_id: user.id }
+  });
 }
+
+

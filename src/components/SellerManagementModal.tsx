@@ -21,6 +21,7 @@ import { deleteProduct } from '@/lib/market-actions';
 import ShareButton from './ShareButton';
 import DisputeForm from './DisputeForm';
 import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
+import { useNotification } from './ui/NotificationProvider';
 
 interface SellerManagementModalProps {
   product: any;
@@ -29,18 +30,38 @@ interface SellerManagementModalProps {
 export default function SellerManagementModal({ product }: SellerManagementModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const { showToast, showConfirm } = useNotification();
 
   const handleMarkSold = async () => {
+    const confirmed = await showConfirm({
+      title: 'Mark as Sold',
+      message: 'Are you sure you want to mark this item as sold? This will notify any buyers and stop further inquiries.',
+      confirmLabel: 'Mark Sold',
+      variant: 'primary'
+    });
+    if (!confirmed) return;
+
     setLoadingAction('sold');
-    await markProductSold(product.id);
+    const res = await markProductSold(product.id);
+    if (res?.error) showToast(res.error, "error");
+    else showToast("Item marked as sold successfully!", "success");
     setLoadingAction(null);
     setIsOpen(false);
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to remove this listing? This action cannot be undone.')) return;
+    const confirmed = await showConfirm({
+      title: 'Remove Listing',
+      message: 'Are you sure you want to remove this listing? This action cannot be undone.',
+      confirmLabel: 'Delete Permanently',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
+
     setLoadingAction('delete');
-    await deleteProduct(product.id);
+    const res = await deleteProduct(product.id);
+    if (res?.error) showToast(res.error, "error");
+    else showToast("Listing removed successfully.", "success");
     setLoadingAction(null);
     setIsOpen(false);
   };

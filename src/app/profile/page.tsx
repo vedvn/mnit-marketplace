@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getAdminSettingsCached } from '@/lib/settings';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -18,6 +19,8 @@ import { MapPin } from 'lucide-react';
 import { decrypt } from '@/lib/utils/encryption';
 import DisputeViewModal from '@/components/DisputeViewModal';
 import ClientProfileTabs from './ClientProfileTabs';
+import { createAdminClient as adminCl } from '@/lib/supabase/admin';
+
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -81,6 +84,17 @@ export default async function ProfilePage() {
     };
   });
 
+  // Fetch user's own notes
+  const { data: userNotes } = await adminSupabase
+    .from('notes')
+    .select('*')
+    .eq('uploader_id', user.id)
+    .order('created_at', { ascending: false });
+
+  // Fetch holiday status
+  const settings = await getAdminSettingsCached();
+  const isHoliday = settings?.is_holiday_mode ?? false;
+
   return (
     <div className="min-h-screen pt-24 pb-12 px-6 max-w-5xl mx-auto">
       {/* Header */}
@@ -123,6 +137,8 @@ export default async function ProfilePage() {
         purchases={purchases || []} 
         userDisputes={userDisputes}
         userId={user.id}
+        userNotes={userNotes || []}
+        isHoliday={isHoliday}
       />
 
       {/* Danger Zone / Data Rights (Compliance Section 06) */}

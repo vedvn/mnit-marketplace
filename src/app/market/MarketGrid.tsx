@@ -12,20 +12,11 @@ import ProductQuickView from '@/components/ProductQuickView';
 const CheckoutButton = dynamic(() => import('./[id]/CheckoutButton'), { ssr: false, loading: () => null });
 const ShareButton = dynamic(() => import('@/components/ShareButton'), { ssr: false, loading: () => null });
 
-import { logAnalyticsEvent } from '@/lib/analytics-actions';
-
-export default function MarketGrid({ initialProducts, categories, isLoggedIn, currentUserId }: { initialProducts: any[], categories: any[], isLoggedIn: boolean, currentUserId?: string }) {
+export default function MarketGrid({ initialProducts, categories, isLoggedIn, currentUserId, isHolidayMode }: { initialProducts: any[], categories: any[], isLoggedIn: boolean, currentUserId?: string, isHolidayMode?: boolean }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [conditionFilter, setConditionFilter] = useState('');
   const [sortBy, setSortBy] = useState('newest');
-
-  const handleProductClick = (productId: string, categoryId: string) => {
-    // Strict compliance check
-    if (typeof window !== 'undefined' && localStorage.getItem('mnit_cookie_consent')) {
-      logAnalyticsEvent('PRODUCT_INTERACTION', `/market/${productId}`, productId, categoryId, { action: 'GRID_CLICK' });
-    }
-  };
 
   const filteredProducts = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
@@ -157,7 +148,6 @@ export default function MarketGrid({ initialProducts, categories, isLoggedIn, cu
             <Link 
               key={product.id} 
               href={`/market/${product.id}`}
-              onClick={() => handleProductClick(product.id, product.category_id)}
               className="group flex flex-col bg-white overflow-hidden bento-border-r bento-border-b hover:bg-foreground/5 transition-colors"
             >
               {/* Image Container */}
@@ -178,7 +168,7 @@ export default function MarketGrid({ initialProducts, categories, isLoggedIn, cu
                   </div>
                 )}
                 
-                <ProductQuickView product={product} isLoggedIn={isLoggedIn} />
+                <ProductQuickView product={product} isLoggedIn={isLoggedIn} isHolidayMode={isHolidayMode} />
 
                 <div className="absolute top-3 left-3 px-3 py-1 bg-white text-foreground text-[10px] font-bold uppercase tracking-wider bento-border shadow-sm">
                   {product.condition.replace('_', ' ')}
@@ -251,6 +241,7 @@ export default function MarketGrid({ initialProducts, categories, isLoggedIn, cu
                         isLoggedIn={isLoggedIn} 
                         productTitle={product.title}
                         variant="compact"
+                        isHolidayMode={isHolidayMode}
                       />
                     )
                   )}

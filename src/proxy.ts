@@ -75,6 +75,11 @@ export async function proxy(request: NextRequest) {
     path.startsWith('/_next') || 
     path === '/favicon.ico';
 
+  const isNotesPath = path.startsWith('/notes') || path.startsWith('/api/notes');
+  const isProfilePath = path.startsWith('/profile');
+  const isMarketPath = path.startsWith('/market');
+  const isHolidayBypass = isCriticalPath || isNotesPath || isProfilePath || isMarketPath;
+
   // For unauthenticated users: redirect to maintenance/holiday immediately (no staff check possible)
   if (!user && !isCriticalPath) {
     if (isMaintenance) {
@@ -82,7 +87,7 @@ export async function proxy(request: NextRequest) {
       url.pathname = '/maintenance';
       return NextResponse.redirect(url);
     }
-    if (isHoliday) {
+    if (isHoliday && !isNotesPath) {
       const url = request.nextUrl.clone();
       url.pathname = '/holiday';
       return NextResponse.redirect(url);
@@ -107,7 +112,7 @@ export async function proxy(request: NextRequest) {
         url.pathname = '/maintenance';
         return NextResponse.redirect(url);
       }
-      if (isHoliday && !isStaff) {
+      if (isHoliday && !isStaff && !isHolidayBypass) {
         const url = request.nextUrl.clone();
         url.pathname = '/holiday';
         return NextResponse.redirect(url);
@@ -184,6 +189,7 @@ export const config = {
      * Match all request paths except for the ones starting with:
      * - _next/static (static files)
      * - _next/image (image optimization files)
+     * - api/notes/upload (file upload API route - bypass 10MB edge limit)
      * - favicon.ico (favicon file)
      * Feel free to modify this pattern to include more paths.
      */

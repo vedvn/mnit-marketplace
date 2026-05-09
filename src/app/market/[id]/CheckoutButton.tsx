@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { isDeliveryWindowOpen } from '@/lib/utils/time';
 import { DELIVERY_WINDOW_START_DISPLAY, DELIVERY_WINDOW_END_DISPLAY } from '@/lib/constants/delivery';
 import { useEffect } from 'react';
+import { useNotification } from '@/components/ui/NotificationProvider';
 
 interface Props {
   productId: string;
@@ -16,14 +17,16 @@ interface Props {
   isLoggedIn: boolean;
   productTitle: string;
   isBuyingDisabled?: boolean;
+  isHolidayMode?: boolean;
   variant?: 'compact' | 'full';
 }
 
-export default function CheckoutButton({ productId, price, isLoggedIn, productTitle, isBuyingDisabled, variant = 'full' }: Props) {
+export default function CheckoutButton({ productId, price, isLoggedIn, productTitle, isBuyingDisabled, isHolidayMode, variant = 'full' }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const pendingOrderId = useRef<string | null>(null);
+  const { showToast } = useNotification();
   const [isWindowOpen, setIsWindowOpen] = useState(true);
   const router = useRouter();
 
@@ -195,7 +198,23 @@ export default function CheckoutButton({ productId, price, isLoggedIn, productTi
             {error}
           </div>
         )}
-        {isBuyingDisabled ? (
+        {isHolidayMode ? (
+           <div className="flex flex-col gap-2">
+             <button
+               onClick={() => showToast("Purchases are suspended during the holiday break. You can still browse and save items!", "info")}
+               className={`w-full flex items-center justify-center gap-3 bg-foreground/10 text-foreground/40 font-bold uppercase tracking-widest cursor-not-allowed border border-black/5 ${
+                 variant === 'compact' ? 'py-3 text-[10px] rounded-lg' : 'h-16 text-sm'
+               }`}
+             >
+               Marketplace Suspended
+             </button>
+             {variant !== 'compact' && (
+               <p className="text-[10px] text-foreground/30 font-bold uppercase tracking-widest text-center mt-1">
+                 Browsing only during holiday break
+               </p>
+             )}
+           </div>
+        ) : isBuyingDisabled ? (
            <div className="p-8 bg-amber-500/10 bento-border-t text-center">
              <div className="flex justify-center mb-3">
                <ShieldBan className="w-8 h-8 text-amber-600" />

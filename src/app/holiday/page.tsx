@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
-import { Palmtree, Calendar, Mail } from 'lucide-react';
+import { getAdminSettingsCached } from '@/lib/settings';
+import { Palmtree, Calendar, Mail, BookOpen, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { Metadata } from 'next';
 
@@ -18,7 +19,7 @@ const InstagramIcon = () => (
 
 export default async function HolidayPage() {
   const supabase = await createClient();
-  const { data: settings } = await supabase.from('admin_settings').select('holiday_message').single();
+  const settings = await getAdminSettingsCached();
 
   const message = settings?.holiday_message || "MNIT Marketplace is closed for the holiday break. See you soon!";
 
@@ -83,7 +84,16 @@ export default async function HolidayPage() {
         </div>
 
         {/* Footer Shortcut */}
-        <div className="space-y-4">
+        <div className="space-y-6">
+          <Link 
+            href="/notes"
+            className="inline-flex items-center gap-2 px-8 py-4 bg-emerald-600 text-white rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/20 group"
+          >
+            <BookOpen className="w-4 h-4" />
+            Go to Notes Hub
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          </Link>
+          
           <p className="text-xs text-foreground/40 font-medium tracking-tight">
             Transactions will resume automatically when we return.
           </p>

@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getAdminSettingsCached } from '@/lib/settings';
 import { HardHat } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { Metadata } from 'next';
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 
 export default async function MaintenancePage() {
   const supabase = createAdminClient();
-  const { data: settings } = await supabase.from('admin_settings').select('is_maintenance_mode').single();
+  const settings = await getAdminSettingsCached();
   
   if (!settings?.is_maintenance_mode) {
     redirect('/');

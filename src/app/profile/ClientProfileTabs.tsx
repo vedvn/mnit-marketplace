@@ -10,7 +10,12 @@ import {
   CheckCircle2,
   MapPin,
   Search,
-  ArrowRight
+  ArrowRight,
+  BookOpen,
+  Download,
+  Trash2,
+  Upload,
+  FileText
 } from 'lucide-react';
 import Link from 'next/link';
 import SellerManagementModal from '@/components/SellerManagementModal';
@@ -18,23 +23,28 @@ import DisputeViewModal from '@/components/DisputeViewModal';
 import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
 import { confirmReceipt } from '@/lib/profile-actions';
 import DisputeForm from '@/components/DisputeForm';
+import { useNotification } from '@/components/ui/NotificationProvider';
 
 interface ClientProfileTabsProps {
   products: any[];
   purchases: any[];
   userDisputes: any[];
   userId: string;
+  userNotes: any[];
+  isHoliday?: boolean;
 }
 
-type TabType = 'listings' | 'purchases' | 'reports';
+type TabType = 'listings' | 'purchases' | 'notes' | 'reports';
 
-export default function ClientProfileTabs({ products, purchases, userDisputes, userId }: ClientProfileTabsProps) {
+export default function ClientProfileTabs({ products, purchases, userDisputes, userId, userNotes, isHoliday }: ClientProfileTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>('listings');
+  const { showToast, showConfirm } = useNotification();
 
   const tabs = [
-    { id: 'listings', label: 'My Listings', icon: Tag, count: products.length },
-    { id: 'purchases', label: 'My Purchases', icon: ShoppingBag, count: purchases.length },
-    { id: 'reports', label: 'Support & Reports', icon: AlertTriangle, count: userDisputes.length },
+    { id: 'listings',  label: 'My Listings',  icon: Tag,         count: products.length },
+    { id: 'purchases', label: 'My Purchases', icon: ShoppingBag,  count: purchases.length },
+    { id: 'notes',     label: 'My Notes',     icon: BookOpen,    count: userNotes.length },
+    { id: 'reports',   label: 'Support',      icon: AlertTriangle, count: userDisputes.length },
   ];
 
   return (
@@ -83,18 +93,36 @@ export default function ClientProfileTabs({ products, purchases, userDisputes, u
             <div className="space-y-8 animate-in fade-in duration-700">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-black uppercase tracking-tight">Active Listings</h2>
-                <Link href="/sell" className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary-500 transition-all shadow-lg shadow-primary-600/20">
-                  <Plus className="w-4 h-4" /> New Listing
-                </Link>
+                {isHoliday ? (
+                  <button 
+                    onClick={() => showToast("Marketplace listings are suspended during the holiday break. You can still access the Notes Hub!", "info")}
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-foreground/10 text-foreground/40 text-[10px] font-black uppercase tracking-widest cursor-not-allowed border border-black/5"
+                  >
+                    <Plus className="w-4 h-4" /> Listing Suspended
+                  </button>
+                ) : (
+                  <Link href="/sell" className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary-500 transition-all shadow-lg shadow-primary-600/20">
+                    <Plus className="w-4 h-4" /> New Listing
+                  </Link>
+                )}
               </div>
 
               {products.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 text-center glass-card rounded-[32px] border border-black/5 border-dashed">
                   <Tag className="w-12 h-12 text-foreground/10 mb-6" />
                   <p className="text-foreground/40 text-xs font-bold uppercase tracking-widest mb-6">No items listed yet</p>
-                  <Link href="/sell" className="text-primary-600 font-black text-[10px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity flex items-center gap-2">
-                    Open Your Campus Store <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
+                  {isHoliday ? (
+                    <button 
+                      onClick={() => showToast("The Marketplace is closed for the holiday break. Come back later to list your items!", "info")}
+                      className="text-foreground/30 font-black text-[10px] uppercase tracking-[0.2em] flex items-center gap-2"
+                    >
+                      Marketplace Suspended <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  ) : (
+                    <Link href="/sell" className="text-primary-600 font-black text-[10px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity flex items-center gap-2">
+                      Open Your Campus Store <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -168,8 +196,15 @@ export default function ClientProfileTabs({ products, purchases, userDisputes, u
                         {tx.payout_status === 'PENDING' ? (
                           <button
                             onClick={async () => {
-                              if (confirm('Confirm you have received this item? This releases payout to the seller.')) {
+                              const confirmed = await showConfirm({
+                                title: 'Confirm Receipt',
+                                message: 'Confirm you have received this item? This releases payout to the seller.',
+                                confirmLabel: 'Yes, Received',
+                                variant: 'primary'
+                              });
+                              if (confirmed) {
                                 await confirmReceipt(tx.id, tx.product_id);
+                                showToast("Receipt confirmed. Payout scheduled for seller.", "success");
                               }
                             }}
                             className="px-6 py-3 rounded-xl bg-emerald-600 text-white font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
@@ -190,6 +225,112 @@ export default function ClientProfileTabs({ products, purchases, userDisputes, u
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+          {/* MY NOTES TAB */}
+          {activeTab === 'notes' && (
+            <div className="space-y-8 animate-in fade-in duration-700">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+                  <BookOpen className="w-7 h-7 text-primary-500" /> My Notes
+                </h2>
+                <Link
+                  href="/notes/upload"
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary-500 transition-all shadow-lg shadow-primary-600/20"
+                >
+                  <Upload className="w-4 h-4" /> Share Notes
+                </Link>
+              </div>
+
+              {userNotes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 text-center glass-card rounded-[32px] border border-black/5 border-dashed">
+                  <BookOpen className="w-12 h-12 text-foreground/10 mb-6" />
+                  <p className="text-foreground/40 text-xs font-bold uppercase tracking-widest mb-2">No notes shared yet</p>
+                  <p className="text-foreground/30 text-xs mb-6">Be the first to help your batchmates!</p>
+                  <Link
+                    href="/notes/upload"
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 transition-all"
+                  >
+                    <Upload className="w-4 h-4" /> Upload Now <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {userNotes.map((note: any) => {
+                    const typeLabels: Record<string, string> = {
+                      notes: 'Notes', past_paper: 'PYP', reference: 'Reference', assignment: 'Assignment',
+                    };
+                    const typeColors: Record<string, string> = {
+                      notes: 'bg-primary-500/10 text-primary-700',
+                      past_paper: 'bg-red-500/10 text-red-700',
+                      reference: 'bg-emerald-500/10 text-emerald-700',
+                      assignment: 'bg-amber-500/10 text-amber-700',
+                    };
+                    return (
+                      <div key={note.id} className="glass-card rounded-2xl border border-black/5 p-5 flex flex-col gap-4 hover:border-primary-500/20 hover:shadow-md transition-all">
+                        {/* Badges */}
+                        <div className="flex flex-wrap gap-1.5">
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest ${typeColors[note.type] || 'bg-foreground/5 text-foreground/50'}`}>
+                            {typeLabels[note.type] || note.type}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest bg-foreground/5 text-foreground/40">
+                            Sem {note.semester}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest bg-foreground/5 text-foreground/40">
+                            {note.branch}
+                          </span>
+                        </div>
+
+                        {/* Title & subject */}
+                        <div className="flex-1">
+                          <h3 className="font-bold text-sm leading-snug mb-1 line-clamp-2">{note.title}</h3>
+                          <p className="text-xs text-foreground/50 font-medium line-clamp-1">{note.subject}</p>
+                        </div>
+
+                        {/* Stats + actions */}
+                        <div className="flex items-center justify-between pt-3 border-t border-black/5">
+                          <div className="flex items-center gap-3 text-[10px] text-foreground/30 font-bold">
+                            <span className="flex items-center gap-1"><Download className="w-3 h-3" />{note.downloads ?? 0}</span>
+                            <span className="flex items-center gap-1">
+                              <FileText className="w-3 h-3" />
+                              {new Date(note.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={note.file_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-foreground/5 text-foreground/60 text-[10px] font-bold hover:bg-primary-500/10 hover:text-primary-600 transition-colors"
+                            >
+                              <Download className="w-3 h-3" /> View
+                            </a>
+                            <button
+                              onClick={async () => {
+                                const confirmed = await showConfirm({
+                                  title: 'Delete Note',
+                                  message: 'Are you sure you want to delete this note? This action cannot be undone.',
+                                  confirmLabel: 'Delete',
+                                  variant: 'danger'
+                                });
+                                if (confirmed) {
+                                  const { deleteUserNote } = await import('@/lib/notes-actions');
+                                  const res = await deleteUserNote(note.id);
+                                  if (res.error) showToast(res.error, "error");
+                                  else showToast("Note deleted successfully", "success");
+                                }
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/5 text-red-600 text-[10px] font-bold hover:bg-red-500/10 hover:text-red-700 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" /> Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

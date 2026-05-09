@@ -1,4 +1,5 @@
-import { getProductById, recordProductInteraction } from '@/lib/market-actions';
+import { getProductById } from '@/lib/market-actions';
+import { getAdminSettingsCached } from '@/lib/settings';
 import { notFound } from 'next/navigation';
 import { Tag, MapPin, Clock, IndianRupee, ShieldCheck } from 'lucide-react';
 import CheckoutButton from './CheckoutButton';
@@ -69,9 +70,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const { data: { user } } = await supabase.auth.getUser();
 
   const adminSupabase = createAdminClient();
-  const { data: adminSettings } = await adminSupabase.from('admin_settings').select('*').single();
+  const adminSettings = await getAdminSettingsCached();
   const feePercent: number = adminSettings?.platform_fee_percent ?? 5;
   const isBuyingDisabled: boolean = adminSettings?.is_buying_disabled ?? false;
+  const isHolidayMode: boolean = adminSettings?.is_holiday_mode ?? false;
 
   const isOwner = user?.id === product.seller_id;
 
@@ -187,6 +189,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                   isLoggedIn={!!user}
                   productTitle={product.title}
                   isBuyingDisabled={isBuyingDisabled}
+                  isHolidayMode={isHolidayMode}
                 />
               )}
             </div>

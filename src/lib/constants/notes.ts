@@ -1,5 +1,6 @@
 export const NOTE_BRANCHES = ['CSE', 'AI', 'ECE', 'EE', 'Meta', 'Civil', 'Chemical', 'Mechanical'] as const;
-export type NoteBranch = typeof NOTE_BRANCHES[number];
+export const ALL_NOTE_BRANCHES = ['Common (All Branches)', ...NOTE_BRANCHES] as const;
+export type NoteBranch = typeof NOTE_BRANCHES[number] | 'Common';
 
 export const NOTE_TYPES = {
   notes: 'Notes',
@@ -20,6 +21,7 @@ export const BRANCH_COLORS: Record<string, string> = {
   Civil: 'bg-orange-500/10 text-orange-700 border-orange-500/20',
   Chemical: 'bg-red-500/10 text-red-700 border-red-500/20',
   Mechanical: 'bg-cyan-500/10 text-cyan-700 border-cyan-500/20',
+  Common: 'bg-slate-500/10 text-slate-700 border-slate-500/20',
 };
 
 export const TYPE_COLORS: Record<string, string> = {

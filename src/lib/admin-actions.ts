@@ -2,11 +2,11 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
+import { getAdminSettingsCached } from '@/lib/settings';
 import { cookies } from 'next/headers';
 import { decrypt } from './utils/encryption';
 import { triggerAccountBannedEmail, triggerAccountUnbannedEmail, triggerListingDeletedEmail } from './email-service';
-import { runSystemJanitor, logSecurityEvent } from './admin-janitor';
 
 // Helper to double-check rights for Admins
 async function verifyAdminClearance() {
@@ -41,9 +41,6 @@ async function verifyStaffClearance() {
 export async function getAdminDashboardData() {
   const cleared = await verifyStaffClearance();
   if (!cleared) return { error: 'Unauthorized' };
-
-  // Trigger automated janitor on dashboard access (Self-healing TTL)
-  runSystemJanitor().catch(console.error);
 
   const supabase = await createClient();
   const adminSupabase = createAdminClient();
@@ -82,6 +79,34 @@ export async function getAdminDashboardData() {
     `)
     .order('created_at', { ascending: false });
 
+  // 2b. Mask PII for non-Super Admins (Employees or Admins without token in this view)
+  // We explicitly check verifyAdminClearance here to decide if we show raw data.
+  const isSuperAdmin = await verifyAdminClearance();
+  
+  const processedTransactions = (transactions || []).map(tx => {
+    if (isSuperAdmin) return tx;
+    
+    // Masking logic for staff
+    const seller = tx.seller as any;
+    const buyer = tx.buyer as any;
+    
+    return {
+      ...tx,
+      seller: {
+        ...seller,
+        bank_account_number: seller?.bank_account_number ? `****${seller.bank_account_number.slice(-4)}` : null,
+        bank_ifsc: seller?.bank_ifsc ? `${seller.bank_ifsc.slice(0, 4)}****` : null,
+        upi_id: seller?.upi_id ? `${seller.upi_id.split('@')[0].slice(0, 3)}***@${seller.upi_id.split('@')[1]}` : null,
+        phone_number: seller?.phone_number ? `******${seller.phone_number.slice(-4)}` : null
+      },
+      buyer: {
+        ...buyer,
+        phone_number: buyer?.phone_number ? `******${buyer.phone_number.slice(-4)}` : null,
+        email: buyer?.email ? `${buyer.email.split('@')[0].slice(0, 2)}***@${buyer.email.split('@')[1]}` : null
+      }
+    };
+  });
+
   // 3. Aggregate 
   const totalAmountCollected = transactions?.reduce((sum, tx) => sum + Number(tx.amount_paid), 0) || 0;
   const totalPlatformFees = transactions?.reduce((sum, tx) => sum + Number(tx.platform_fee), 0) || 0;
@@ -92,7 +117,7 @@ export async function getAdminDashboardData() {
     .select('category_id, status');
   
   // 5. Current settings
-  const { data: settings } = await adminSupabase.from('admin_settings').select('*').single();
+  const settings = await getAdminSettingsCached();
 
   // 6. Categories
   const { data: categories } = await adminSupabase.from('categories').select('*').order('name');
@@ -108,12 +133,20 @@ export async function getAdminDashboardData() {
     .select('*')
     .limit(10);
 
+  // 8. Search Analytics (Recent Note Queries)
+  const { data: recentSearches } = await adminSupabase
+    .from('site_analytics')
+    .select('*')
+    .eq('event_type', 'NOTE_SEARCH')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
   return {
     success: true,
     sellers: allUsers?.filter(u => sellerIds.includes(u.id)) || [],
     allUsers: allUsers || [],
     allProducts: flattenedProducts,
-    transactions: transactions || [],
+    transactions: processedTransactions,
     categoryStats: categoryStats || [],
     feePercent: settings?.platform_fee_percent ?? 5,
     isMaintenanceMode: settings?.is_maintenance_mode ?? false,
@@ -127,7 +160,8 @@ export async function getAdminDashboardData() {
     },
     analytics: {
       topProducts: topProducts || [],
-      topPages: topPages || []
+      topPages: topPages || [],
+      recentSearches: recentSearches || []
     }
   };
 }
@@ -152,13 +186,9 @@ export async function adminDeleteProduct(productId: string, reason: string = "Vi
 
   // Notify Seller
   const seller = Array.isArray(product?.seller) ? product.seller[0] : (product?.seller as any);
-  
   if (seller?.email) {
     await triggerListingDeletedEmail(seller.email, seller.name, product.title, reason);
   }
-
-  // Log deletion
-  await logSecurityEvent('DELETE_PRODUCT', { productId, title: product.title, reason });
 
   revalidatePath('/admin');
   return { success: true };
@@ -205,9 +235,6 @@ export async function adminResolveDispute(disputeId: string, status: 'RESOLVED' 
     .eq('id', disputeId);
 
   if (error) return { error: error.message };
-
-  // Log resolution
-  await logSecurityEvent('RESOLVE_DISPUTE', { disputeId, status, resolution });
 
   revalidatePath('/admin');
   return { success: true };
@@ -280,9 +307,6 @@ export async function adminBanUser(userId: string, durationDays: number | null, 
     );
   }
 
-  // Log Ban
-  await logSecurityEvent('BAN_USER', { userId, durationDays, reason });
-
   revalidatePath('/admin');
   return { success: true };
 }
@@ -308,9 +332,6 @@ export async function adminUnbanUser(userId: string) {
   if (user?.email) {
     await triggerAccountUnbannedEmail(user.email, user.name);
   }
-
-  // Log Unban
-  await logSecurityEvent('UNBAN_USER', { userId });
 
   revalidatePath('/admin');
   return { success: true };
@@ -379,8 +400,8 @@ export async function adminUpdateGlobalSettings(updates: {
   is_holiday_mode?: boolean,
   holiday_message?: string
 }) {
-  const cleared = await verifyStaffClearance();
-  if (!cleared) return { error: 'Unauthorized' };
+  const cleared = await verifyAdminClearance(); // Restricted to Super Admin
+  if (!cleared) return { error: 'Unauthorized. Only Super Admins can modify global settings.' };
 
   const adminSupabase = createAdminClient();
   const { error } = await adminSupabase
@@ -390,6 +411,7 @@ export async function adminUpdateGlobalSettings(updates: {
 
   if (error) return { error: error.message };
 
+  revalidateTag('admin-settings', {});
   revalidatePath('/admin');
   revalidatePath('/market');
   revalidatePath('/');

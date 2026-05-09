@@ -3,7 +3,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
-import { logSecurityEvent } from './admin-janitor';
 import { runAIVerificationForProduct } from './ai-verify-runner';
 
 // Helper to verify that the user is an employee or admin
@@ -110,8 +109,6 @@ export async function approveProduct(productId: string) {
     }).catch(console.error);
   }
 
-  // Log approval
-  await logSecurityEvent('APPROVE_PRODUCT', { productId, title: product?.title });
 
   revalidatePath('/employee');
   revalidatePath('/market');

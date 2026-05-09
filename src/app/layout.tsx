@@ -118,31 +118,18 @@ import Footer from "@/components/Footer";
 import MainLayout from "@/components/MainLayout";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// Cache admin settings for 60 seconds — eliminates a DB roundtrip on every page load
-const getCachedAdminSettings = unstable_cache(
-  async () => {
-    const adminSupabase = createAdminClient();
-    const { data } = await adminSupabase
-      .from('admin_settings')
-      .select('is_buying_disabled')
-      .single();
-    return data;
-  },
-  ['admin-settings-layout'],
-  { revalidate: 3600 } // 1 hour — admin_settings rarely changes; revalidatePath busts this on toggle
-);
+import { getAdminSettingsCached } from '@/lib/settings';
 
 import { Suspense } from "react";
-import AnalyticsTracker from "@/components/AnalyticsTracker";
+import UmamiTracker from "@/components/UmamiTracker";
 import CookieConsent from "@/components/CookieConsent";
-import GoogleAnalyticsTracker from "@/components/GoogleAnalyticsTracker";
 
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const settings = await getCachedAdminSettings();
+  const settings = await getAdminSettingsCached();
   const isBuyingDisabled = settings?.is_buying_disabled || false;
 
   return (
@@ -164,12 +151,11 @@ export default async function RootLayout({
         isBuyingDisabled={isBuyingDisabled}
       >
         <Suspense fallback={null}>
-          <AnalyticsTracker />
+          <UmamiTracker />
           <CookieConsent />
         </Suspense>
         {children}
       </MainLayout>
-      <GoogleAnalyticsTracker gaId={process.env.NEXT_PUBLIC_GA_ID || "G-YOUR_TRACKING_ID"} />
     </html>
   );
 }

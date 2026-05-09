@@ -13,7 +13,6 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { verifyProductWithAI } from '@/lib/ai-verifier';
 import { triggerListingAutoApprovedEmail, triggerAdminProductAlertEmail } from '@/lib/email-service';
 import { revalidatePath } from 'next/cache';
-import { logSecurityEvent } from '@/lib/admin-janitor';
 
 export async function runAIVerificationForProduct(productId: string): Promise<void> {
   const adminSupabase = createAdminClient();
@@ -94,13 +93,6 @@ export async function runAIVerificationForProduct(productId: string): Promise<vo
         await triggerListingAutoApprovedEmail(sellerEmail, sellerName, product.title, productId);
       }
 
-      await logSecurityEvent('AUTO_APPROVE_PRODUCT', {
-        productId,
-        title: product.title,
-        aiConfidence: verdict.confidence,
-        aiSummary: verdict.summary,
-        method: 'AI_VISION',
-      });
 
       revalidatePath('/market');
       revalidatePath('/employee');
@@ -127,13 +119,6 @@ export async function runAIVerificationForProduct(productId: string): Promise<vo
     });
   }
 
-  await logSecurityEvent('AI_FLAGGED_PRODUCT', {
-    productId,
-    title: product.title,
-    aiConfidence: verdict.confidence,
-    aiFlags: verdict.flags,
-    aiSummary: verdict.summary,
-  });
 
   console.log(`[AIVerify] ⚠️ Flagged for manual review: "${product.title}" (${productId})`);
 }

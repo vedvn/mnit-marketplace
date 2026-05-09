@@ -1,15 +1,80 @@
 'use client';
 
-import { useState, useEffect, Fragment, useMemo } from 'react';
+import { useState, useEffect, Fragment, useMemo, useCallback } from 'react';
 import { getAdminDashboardData, adminBanUser, adminUnbanUser, adminDeleteTransaction, adminCreateCategory, adminDeleteCategory, adminUpdatePayoutStatus, getDisputeData, adminResolveDispute, adminDeleteProduct, adminUpdateGlobalSettings } from '@/lib/admin-actions';
+import { getNoteBranches, getAllNoteSubjects, adminAddBranch, adminUpdateBranch, adminDeleteBranch, adminAddSubject, adminUpdateSubject, adminDeleteSubject } from '@/lib/notes-actions';
 import { getPendingProducts, approveProduct, rejectProduct, triggerAIReview } from '@/lib/employee-actions';
 import { findBlacklistedKeyword } from '@/lib/constants/blacklist';
-import { Loader2, ShieldAlert, ShieldCheck, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users, Trash2, Tag, PlusCircle, ChevronDown, ChevronUp, CheckCircle2, Clock, CreditCard, ExternalLink, Phone, Copy, Check, AlertTriangle, PieChart as PieChartIcon, Activity, HardHat, RefreshCcw, Bot } from 'lucide-react';
+import { useNotification } from '@/components/ui/NotificationProvider';
+import { Loader2, ShieldAlert, ShieldCheck, Ban, Unlock, Mail, TrendingUp, IndianRupee, Users, Trash2, Tag, PlusCircle, ChevronDown, ChevronUp, CheckCircle2, Clock, CreditCard, ExternalLink, Phone, Copy, Check, AlertTriangle, PieChart as PieChartIcon, Activity, HardHat, RefreshCcw, Bot, BookOpen, Pencil, X, Package, Search } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 
 export default function ClientAdmin() {
+  const { showToast, showConfirm } = useNotification();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'sellers' | 'verification' | 'broadcast' | 'categories' | 'disputes' | 'listings' | 'banned' | 'buyers' | 'system' | 'engagement'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'inventory' | 'users' | 'moderation' | 'system'>('analytics');
+  const [userManagementTab, setUserManagementTab] = useState<'sellers' | 'buyers' | 'banned'>('sellers');
+  const [moderationSubTab, setModerationSubTab] = useState<'verification' | 'disputes'>('verification');
+  const [analyticsSubTab, setAnalyticsSubTab] = useState<'traffic' | 'revenue'>('traffic');
+  const [inventorySubTab, setInventorySubTab] = useState<'listings' | 'categories' | 'notes_hub' | ''>('listings');
+  const [systemSubTab, setSystemSubTab] = useState<'controls' | 'broadcast'>('controls');
+
+  // Notes Hub state
+  const [noteBranches, setNoteBranches] = useState<any[]>([]);
+  const [noteSubjects, setNoteSubjects] = useState<any[]>([]);
+  const [notesHubLoading, setNotesHubLoading] = useState(false);
+  const [newBranchName, setNewBranchName] = useState('');
+  const [newBranchColor, setNewBranchColor] = useState('bg-blue-500/10 text-blue-700 border-blue-500/20');
+  const [editingBranch, setEditingBranch] = useState<any | null>(null);
+  const [newSubjectName, setNewSubjectName] = useState('');
+  const [newSubjectSem, setNewSubjectSem] = useState(1);
+  const [newSubjectBranch, setNewSubjectBranch] = useState('Common');
+  const [editingSubject, setEditingSubject] = useState<any | null>(null);
+  const [notesHubActionLoading, setNotesHubActionLoading] = useState<string | null>(null);
+  const [notesSearchQuery, setNotesSearchQuery] = useState('');
+  const [expandedSems, setExpandedSems] = useState<number[]>([0]);
+  const [expandedBranches, setExpandedBranches] = useState<string[]>([]);
+
+  const filteredNoteBranches = useMemo(() => {
+    if (!notesSearchQuery) return noteBranches;
+    return noteBranches.filter(b => b.name.toLowerCase().includes(notesSearchQuery.toLowerCase()));
+  }, [noteBranches, notesSearchQuery]);
+
+  const filteredNoteSubjects = useMemo(() => {
+    if (!notesSearchQuery) return noteSubjects;
+    const q = notesSearchQuery.toLowerCase();
+    return noteSubjects.filter(s =>
+      s.name.toLowerCase().includes(q) ||
+      s.branch.toLowerCase().includes(q) ||
+      `sem ${s.semester}`.toLowerCase().includes(q)
+    );
+  }, [noteSubjects, notesSearchQuery]);
+
+  const subjectsTree = useMemo(() => {
+    const tree: Record<number, Record<string, any[]>> = {};
+
+    // Sort subjects by name first
+    const sortedSubjects = [...filteredNoteSubjects].sort((a, b) => a.name.localeCompare(b.name));
+
+    sortedSubjects.forEach(subject => {
+      const sem = subject.semester;
+      const branch = subject.branch;
+      if (!tree[sem]) tree[sem] = {};
+      if (!tree[sem][branch]) tree[sem][branch] = [];
+      tree[sem][branch].push(subject);
+    });
+
+    return tree;
+  }, [filteredNoteSubjects]);
+
+  const toggleSem = (sem: number) => {
+    setExpandedSems(prev => prev.includes(sem) ? prev.filter(s => s !== sem) : [...prev, sem]);
+  };
+
+  const toggleBranch = (sem: number, branch: string) => {
+    const key = `${sem}-${branch}`;
+    setExpandedBranches(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+  };
 
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [handleUpdateLoading, setHandleUpdateLoading] = useState(false);
@@ -148,10 +213,85 @@ export default function ClientAdmin() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'disputes') {
-      fetchDisputes();
-    }
+    if (activeTab === 'moderation') fetchDisputes();
+    if (activeTab === 'inventory') fetchNotesHubData();
   }, [activeTab]);
+
+  async function fetchNotesHubData() {
+    setNotesHubLoading(true);
+    const [branches, subjects] = await Promise.all([getNoteBranches(), getAllNoteSubjects()]);
+    setNoteBranches(branches as any[]);
+    setNoteSubjects(subjects as any[]);
+    setNotesHubLoading(false);
+  }
+
+  async function handleAddBranch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newBranchName.trim()) return;
+    setNotesHubActionLoading('add-branch');
+    await adminAddBranch(newBranchName, newBranchColor);
+    setNewBranchName('');
+    await fetchNotesHubData();
+    setNotesHubActionLoading(null);
+  }
+
+  async function handleSaveBranch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingBranch) return;
+    setNotesHubActionLoading('edit-branch');
+    await adminUpdateBranch(editingBranch.id, editingBranch.name, editingBranch.color_class);
+    setEditingBranch(null);
+    await fetchNotesHubData();
+    setNotesHubActionLoading(null);
+  }
+
+  async function handleDeleteBranch(id: string) {
+    const confirmed = await showConfirm({
+      title: 'Delete Branch',
+      message: 'Delete this branch? Notes tagged to it will remain.',
+      confirmLabel: 'Delete',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
+    setNotesHubActionLoading(id);
+    await adminDeleteBranch(id);
+    await fetchNotesHubData();
+    setNotesHubActionLoading(null);
+  }
+
+  async function handleAddSubject(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newSubjectName.trim()) return;
+    setNotesHubActionLoading('add-subject');
+    await adminAddSubject(newSubjectName, newSubjectSem, newSubjectBranch);
+    setNewSubjectName('');
+    await fetchNotesHubData();
+    setNotesHubActionLoading(null);
+  }
+
+  async function handleSaveSubject(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingSubject) return;
+    setNotesHubActionLoading('edit-subject');
+    await adminUpdateSubject(editingSubject.id, editingSubject.name, editingSubject.semester, editingSubject.branch);
+    setEditingSubject(null);
+    await fetchNotesHubData();
+    setNotesHubActionLoading(null);
+  }
+
+  async function handleDeleteSubject(id: string) {
+    const confirmed = await showConfirm({
+      title: 'Delete Subject',
+      message: 'Are you sure you want to delete this subject?',
+      confirmLabel: 'Delete',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
+    setNotesHubActionLoading(id);
+    await adminDeleteSubject(id);
+    await fetchNotesHubData();
+    setNotesHubActionLoading(null);
+  }
 
   async function fetchData() {
     setLoading(true);
@@ -186,7 +326,7 @@ export default function ClientAdmin() {
   async function handleAIReview(id: string) {
     setActionLoading(`ai-${id}`);
     const result = await triggerAIReview(id);
-    if (result?.error) alert(`AI Review failed: ${result.error}`);
+    if (result?.error) showToast(`AI Review failed: ${result.error}`, "error");
     await fetchData();
     setActionLoading(null);
   }
@@ -207,7 +347,13 @@ export default function ClientAdmin() {
   // Ban Actions
   async function handleBan(userId: string, duration: number | null) {
     const timeStr = duration ? `${duration} days` : 'PERMANENTLY';
-    if (!confirm(`Are you sure you want to ban this user ${timeStr}?`)) return;
+    const confirmed = await showConfirm({
+      title: 'Ban User',
+      message: `Are you sure you want to ban this user ${timeStr}?`,
+      confirmLabel: 'Ban User',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
     setActionLoading(userId);
     await adminBanUser(userId, duration);
     await fetchData();
@@ -215,7 +361,13 @@ export default function ClientAdmin() {
   }
 
   async function handleUnban(id: string) {
-    if (!confirm('Are you sure you want to unban this user?')) return;
+    const confirmed = await showConfirm({
+      title: 'Unban User',
+      message: 'Are you sure you want to unban this user?',
+      confirmLabel: 'Unban',
+      variant: 'primary'
+    });
+    if (!confirmed) return;
     setActionLoading(id);
     await adminUnbanUser(id);
     await fetchData();
@@ -233,7 +385,13 @@ export default function ClientAdmin() {
   }
 
   async function handleDeleteTx(txId: string) {
-    if (!confirm('Are you sure you want to permanently delete this transaction? This cannot be undone.')) return;
+    const confirmed = await showConfirm({
+      title: 'Delete Transaction',
+      message: 'Are you sure you want to permanently delete this transaction? This cannot be undone.',
+      confirmLabel: 'Delete Permanently',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
     setActionLoading(txId);
     await adminDeleteTransaction(txId);
     await fetchData();
@@ -251,7 +409,13 @@ export default function ClientAdmin() {
   }
 
   async function handleDeleteCategory(id: string) {
-    if (!confirm('Delete this category? Products using it will need to be reassigned.')) return;
+    const confirmed = await showConfirm({
+      title: 'Delete Category',
+      message: 'Delete this category? Products using it will need to be reassigned.',
+      confirmLabel: 'Delete',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
     setCategoryActionLoading(id);
     await adminDeleteCategory(id);
     await fetchData();
@@ -259,7 +423,7 @@ export default function ClientAdmin() {
   }
 
   async function handleResolveDispute(disputeId: string, status: 'RESOLVED' | 'REJECTED', resolution: string) {
-    if (!resolution.trim()) return alert("Please provide a resolution note.");
+    if (!resolution.trim()) return showToast("Please provide a resolution note.", "warning");
     setActionLoading(disputeId);
     await adminResolveDispute(disputeId, status, resolution);
     await fetchDisputes();
@@ -269,7 +433,8 @@ export default function ClientAdmin() {
   async function handleUpdateSystem(updates: any) {
     setHandleUpdateLoading(true);
     const res = await adminUpdateGlobalSettings(updates);
-    if (res.error) alert(res.error);
+    if (res.error) showToast(res.error, "error");
+    else showToast("Settings updated successfully", "success");
     await fetchData();
     setHandleUpdateLoading(false);
   }
@@ -277,7 +442,13 @@ export default function ClientAdmin() {
   // Broadcast Action
   async function handleBroadcast(e: React.FormEvent) {
     e.preventDefault();
-    if (!confirm(`Are you sure you want to broadcast this message to ALL active users?`)) return;
+    const confirmed = await showConfirm({
+      title: 'Confirm Broadcast',
+      message: 'Are you sure you want to broadcast this message to ALL active users?',
+      confirmLabel: 'Launch Broadcast',
+      variant: 'primary'
+    });
+    if (!confirmed) return;
 
     setIsBroadcasting(true);
     setBroadcastSuccess(null);
@@ -310,1192 +481,1479 @@ export default function ClientAdmin() {
   }
 
   return (
-    <div className="min-h-screen pt-24 pb-12 px-6 max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-        <div className="flex items-center gap-3">
-          <ShieldAlert className="w-10 h-10 text-red-500" />
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight uppercase">Super Admin Hub</h1>
-            <p className="text-foreground/70">Complete system oversight and moderation.</p>
+    <div className="min-h-screen pt-24 pb-12 px-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="w-10 h-10 text-red-500" />
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight uppercase">Super Admin Hub</h1>
+              <p className="text-foreground/70">Complete system oversight and moderation.</p>
+            </div>
           </div>
-        </div>
 
-        {/* Tab Nav - Desktop */}
-        <div className="hidden lg:flex flex-wrap gap-2 p-1 bg-foreground/5 rounded-xl self-start md:self-auto">
-          {['analytics', 'engagement', 'listings', 'sellers', 'buyers', 'banned', 'categories', 'verification', 'disputes', 'broadcast', 'system'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab as any)}
-              className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition ${activeTab === tab ? 'bg-background shadow-sm text-foreground' : 'text-foreground/50 hover:text-foreground hover:bg-foreground/5'
-                }`}
+          {/* Tab Nav - Desktop */}
+          <div className="hidden lg:flex flex-wrap gap-2 p-1 bg-foreground/5 rounded-xl self-start md:self-auto">
+            {['analytics', 'inventory', 'users', 'moderation', 'system'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab as any)}
+                className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition ${activeTab === tab ? 'bg-background shadow-sm text-foreground' : 'text-foreground/50 hover:text-foreground hover:bg-foreground/5'
+                  }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab Nav - Mobile Dropdown */}
+          <div className="lg:hidden w-full relative group">
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value as any)}
+              className="w-full p-4 bg-foreground/5 bento-border rounded-xl font-bold uppercase tracking-widest text-xs appearance-none outline-none focus:border-primary-600"
             >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab Nav - Mobile Dropdown */}
-        <div className="lg:hidden w-full relative group">
-          <select
-            value={activeTab}
-            onChange={(e) => setActiveTab(e.target.value as any)}
-            className="w-full p-4 bg-foreground/5 bento-border rounded-xl font-bold uppercase tracking-widest text-xs appearance-none outline-none focus:border-primary-600"
-          >
-            <option value="analytics">Analytics & Fees</option>
-            <option value="engagement">Engagement & Traffic</option>
-            <option value="listings">All Listings</option>
-            <option value="sellers">Active Sellers</option>
-            <option value="buyers">Registered Buyers</option>
-            <option value="banned">Banned Accounts</option>
-            <option value="categories">Market Categories</option>
-            <option value="verification">Listing Verification</option>
-            <option value="disputes">Resolution Tickets</option>
-            <option value="broadcast">Policy Broadcast</option>
-          </select>
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground/40">
-            <ChevronDown className="w-4 h-4" />
-          </div>
-        </div>
-      </div>
-
-      {/* TABS CONTENT */}
-
-      {/* ANALYTICS TAB */}
-      {activeTab === 'analytics' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="glass-card p-6 rounded-2xl bento-border flex flex-col items-center justify-center text-center">
-              <IndianRupee className="w-5 h-5 text-foreground/50 mb-2" />
-              <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 mb-1">Total Volume</p>
-              <p className="text-2xl font-black">₹{dashboardData?.totals.amountCollected.toLocaleString()}</p>
-            </div>
-
-            <div className="glass-card p-6 rounded-2xl bento-border flex flex-col items-center justify-center text-center bg-foreground/2">
-              <TrendingUp className="w-5 h-5 text-primary-500 mb-2" />
-              <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 mb-1">Platform Fees ({dashboardData?.feePercent || 0}%)</p>
-              <p className="text-2xl font-black">₹{dashboardData?.totals.platformFees.toLocaleString()}</p>
-            </div>
-
-            <div className="glass-card p-6 rounded-2xl bento-border flex flex-col items-center justify-center text-center bg-emerald-500/5 ring-1 ring-inset ring-emerald-500/10">
-              <Activity className="w-5 h-5 text-emerald-500 mb-2" />
-              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1">Total Revenue (Net)</p>
-              <p className="text-2xl font-black text-emerald-600">₹{netRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              <p className="text-[8px] font-black uppercase tracking-tighter text-emerald-600/40 mt-1">({(dashboardData?.feePercent || 0) - 2}% Profit)</p>
-            </div>
-
-            <div className="glass-card p-6 rounded-2xl bento-border flex flex-col items-center justify-center text-center">
-              <Users className="w-5 h-5 text-blue-500 mb-2" />
-              <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 mb-1">Active Sellers</p>
-              <p className="text-2xl font-black">{activeSellers.length}</p>
+              <option value="analytics">Analytics &amp; Traffic</option>
+              <option value="inventory">Inventory &amp; Management</option>
+              <option value="users">User Management</option>
+              <option value="moderation">Moderation Center</option>
+              <option value="system">System &amp; Broadcast</option>
+            </select>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground/40">
+              <ChevronDown className="w-4 h-4" />
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-            {/* Sales Volume Linear Trend */}
-            <div className="glass-card p-6 rounded-2xl bento-border h-[400px] flex flex-col">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-emerald-500" />
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/50">30-Day Trading Volume</h3>
-                </div>
-                <div className="text-sm font-black text-emerald-600">
-                  ₹{timeSeriesData.reduce((acc: number, curr: any) => acc + curr.volume, 0).toLocaleString()}
-                </div>
-              </div>
-              <div className="flex-1 w-full -ml-6 min-h-0">
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={timeSeriesData}>
-                    <defs>
-                      <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
-                    <XAxis
-                      dataKey="date"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 10, fill: 'rgba(0,0,0,0.4)', fontWeight: 'bold' }}
-                      minTickGap={30}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 10, fill: 'rgba(0,0,0,0.4)', fontWeight: 'bold' }}
-                      tickFormatter={(value) => `₹${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}`}
-                    />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: 'white', borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
-                      itemStyle={{ color: '#10b981', fontWeight: 'bold' }}
-                    />
-                    <Area type="monotone" dataKey="volume" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorVolume)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+        {/* TABS CONTENT */}
+
+        {/* ANALYTICS & TRAFFIC TAB */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex items-center gap-2 p-1 bg-foreground/5 rounded-xl self-start w-fit">
+              {[
+                { id: 'traffic', label: 'Live Traffic', icon: Activity },
+                { id: 'revenue', label: 'Revenue Stats', icon: TrendingUp }
+              ].map(sub => (
+                <button
+                  key={sub.id}
+                  onClick={() => setAnalyticsSubTab(sub.id as any)}
+                  className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition flex items-center gap-2 ${analyticsSubTab === sub.id ? 'bg-background shadow-sm text-foreground' : 'text-foreground/50 hover:text-foreground'
+                    }`}
+                >
+                  <sub.icon className="w-3.5 h-3.5" />
+                  {sub.label}
+                </button>
+              ))}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {/* Category Breakdown Pie */}
-              <div className="glass-card p-6 rounded-2xl bento-border flex flex-col">
-                <div className="flex items-center gap-2 mb-6">
-                  <PieChartIcon className="w-4 h-4 text-blue-500" />
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-foreground/50">Market Categories</h3>
-                </div>
-                <div className="flex-1 flex items-center justify-center relative">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={categoryDistribution}
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {categoryDistribution.map((_: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{ backgroundColor: 'white', borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
-                        itemStyle={{ fontSize: '10px', fontWeight: 'bold' }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-2xl font-black">{categoryDistribution.reduce((acc: number, curr: any) => acc + curr.value, 0)}</span>
-                    <span className="text-[8px] uppercase font-bold text-foreground/30">Listings</span>
+            {analyticsSubTab === 'traffic' && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary-500/10 rounded-lg">
+                      <Activity className="w-5 h-5 text-primary-600" />
+                    </div>
+                    <h2 className="text-xl font-black uppercase tracking-tight">Real-time Engagement</h2>
                   </div>
+                  {process.env.NEXT_PUBLIC_UMAMI_SHARE_URL && (
+                    <a
+                      href={process.env.NEXT_PUBLIC_UMAMI_SHARE_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 bg-foreground/5 hover:bg-foreground/10 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"
+                    >
+                      Open Dashboard <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
                 </div>
-              </div>
 
-              {/* Transaction Health Bar */}
-              <div className="glass-card p-6 rounded-2xl bento-border flex flex-col">
-                <div className="flex items-center gap-2 mb-6">
-                  <Activity className="w-4 h-4 text-amber-500" />
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-foreground/50">Payout Health</h3>
-                </div>
-                <div className="flex-1 min-h-0">
-                  <ResponsiveContainer width="100%" height={160}>
-                    <BarChart data={payoutHealth} layout="vertical">
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" hide />
-                      <Tooltip
-                        cursor={{ fill: 'transparent' }}
-                        contentStyle={{ backgroundColor: 'white', borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
-                        itemStyle={{ fontSize: '10px', fontWeight: 'bold' }}
-                      />
-                      <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                  <div className="mt-4 space-y-2">
-                    {payoutHealth.map((item: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between text-[10px]">
-                        <div className="flex items-center gap-2 uppercase font-bold text-foreground/40">
-                          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.fill }} />
-                          {item.name}
-                        </div>
-                        <span className="font-bold">{item.value}</span>
+                <div className="glass-card rounded-4xl border border-black/5 shadow-2xl overflow-hidden bg-white/50 backdrop-blur-xl h-[800px] relative">
+                  {!process.env.NEXT_PUBLIC_UMAMI_SHARE_URL ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center">
+                      <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mb-6">
+                        <ShieldAlert className="w-10 h-10 text-amber-600" />
                       </div>
-                    ))}
-                  </div>
+                      <h3 className="text-2xl font-black mb-2 uppercase tracking-tight">Umami Share URL Missing</h3>
+                      <p className="text-foreground/50 max-w-md leading-relaxed mb-8">
+                        To display live analytics here, you need to enable the <b>Share URL</b> in your Umami dashboard and add it to your environment variables.
+                      </p>
+                      <div className="bg-foreground/5 p-6 rounded-2xl border border-black/5 text-left font-mono text-xs space-y-2">
+                        <p className="text-foreground/30"># Add this to .env.local</p>
+                        <p className="text-primary-600">NEXT_PUBLIC_UMAMI_SHARE_URL=https://cloud.umami.is/share/...</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <iframe
+                      src={process.env.NEXT_PUBLIC_UMAMI_SHARE_URL}
+                      className="w-full h-full border-none"
+                    />
+                  )}
                 </div>
               </div>
-            </div>
-          </div>
+            )}
 
-          <div className="glass-card rounded-2xl bento-border mt-8">
-            <h3 className="font-bold uppercase tracking-wider mb-6 pb-4 border-b border-black/5 px-6 pt-6 text-sm">Recent Transactions</h3>
-            <div className="overflow-x-auto w-full">
-              <table className="min-w-full text-left text-xs sm:text-sm whitespace-nowrap">
-                <thead>
-                  <tr className="text-foreground/50 uppercase tracking-wider border-b border-black/5 bg-foreground/5">
-                    <th className="py-3 px-6 font-bold">Product</th>
-                    <th className="py-3 px-6 font-bold">Buyer</th>
-                    <th className="py-3 px-6 font-bold">Seller</th>
-                    <th className="py-3 px-6 font-bold">Amount</th>
-                    <th className="py-3 px-6 font-bold">Payment</th>
-                    <th className="py-3 px-6 font-bold text-right text-[10px]">Details</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black/5">
-                  {dashboardData?.transactions?.slice(0, 30).map((tx: any) => (
-                    <Fragment key={tx.id}>
-                      <tr className={`hover:bg-foreground/5 transition-colors cursor-pointer ${expandedTx === tx.id ? 'bg-foreground/5' : ''}`} onClick={() => setExpandedTx(expandedTx === tx.id ? null : tx.id)}>
-                        <td className="py-4 px-6 font-medium max-w-[150px] truncate">{tx.product?.title || 'Unknown'}</td>
-                        <td className="py-4 px-6">
-                          <div className="text-xs font-bold">{tx.buyer?.name}</div>
-                          <div className="text-[9px] uppercase tracking-widest text-foreground/40 font-bold">{tx.buyer?.email}</div>
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="text-xs font-bold">{tx.seller?.name}</div>
-                          <div className="text-[9px] uppercase tracking-widest text-foreground/40 font-bold">{tx.seller?.email}</div>
-                        </td>
-                        <td className="py-4 px-6 font-black text-emerald-600">₹{tx.amount_paid}</td>
-                        <td className="py-4 px-6">
-                          <span className={`px-2 py-0.5 text-[9px] uppercase font-bold rounded-full ${tx.payment_status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-700' : 'bg-amber-500/10 text-amber-700'}`}>
-                            {tx.payment_status}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 text-right">
-                          {expandedTx === tx.id ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
-                        </td>
-                      </tr>
+            {analyticsSubTab === 'revenue' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="glass-card p-6 rounded-2xl bento-border flex flex-col items-center justify-center text-center">
+                    <IndianRupee className="w-5 h-5 text-foreground/50 mb-2" />
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 mb-1">Total Volume</p>
+                    <p className="text-2xl font-black">₹{dashboardData?.totals.amountCollected.toLocaleString()}</p>
+                  </div>
 
-                      {expandedTx === tx.id && (
-                        <tr className="bg-foreground/0.02 animate-in slide-in-from-top-2 duration-200">
-                          <td colSpan={6} className="p-0 border-b border-black/5">
-                            <div className="p-4 sm:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                              {/* Buyer Info */}
-                              <div className="space-y-4">
-                                <h4 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-foreground/40">
-                                  <Users className="w-3.5 h-3.5" /> Buyer Details
-                                </h4>
-                                <div className="space-y-2 p-3 rounded-xl bg-foreground/5 border border-black/5">
-                                  <p className="font-bold text-sm">{tx.buyer?.name}</p>
-                                  <p className="text-[11px] text-foreground/60">{tx.buyer?.email}</p>
-                                  {tx.buyer?.phone_number && <p className="text-[11px] text-foreground/60 flex items-center gap-1"><Phone className="w-3 h-3" /> {tx.buyer.phone_number}</p>}
-                                </div>
+                  <div className="glass-card p-6 rounded-2xl bento-border flex flex-col items-center justify-center text-center bg-foreground/2">
+                    <TrendingUp className="w-5 h-5 text-primary-500 mb-2" />
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 mb-1">Platform Fees ({dashboardData?.feePercent || 0}%)</p>
+                    <p className="text-2xl font-black">₹{dashboardData?.totals.platformFees.toLocaleString()}</p>
+                  </div>
+
+                  <div className="glass-card p-6 rounded-2xl bento-border flex flex-col items-center justify-center text-center bg-emerald-500/5 ring-1 ring-inset ring-emerald-500/10">
+                    <Activity className="w-5 h-5 text-emerald-500 mb-2" />
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1">Total Revenue (Net)</p>
+                    <p className="text-2xl font-black text-emerald-600">₹{netRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p className="text-[8px] font-black uppercase tracking-tighter text-emerald-600/40 mt-1">({(dashboardData?.feePercent || 0) - 2}% Profit)</p>
+                  </div>
+
+                  <div className="glass-card p-6 rounded-2xl bento-border flex flex-col items-center justify-center text-center">
+                    <Users className="w-5 h-5 text-blue-500 mb-2" />
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 mb-1">Active Sellers</p>
+                    <p className="text-2xl font-black">{activeSellers.length}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+                  {/* Sales Volume Linear Trend */}
+                  <div className="glass-card p-6 rounded-2xl bento-border h-[400px] flex flex-col">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-emerald-500" />
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/50">30-Day Trading Volume</h3>
+                      </div>
+                      <div className="text-sm font-black text-emerald-600">
+                        ₹{timeSeriesData.reduce((acc: number, curr: any) => acc + curr.volume, 0).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="flex-1 w-full -ml-6 min-h-0">
+                      <ResponsiveContainer width="100%" height={300}>
+                        <AreaChart data={timeSeriesData}>
+                          <defs>
+                            <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                          <XAxis
+                            dataKey="date"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 10, fill: 'rgba(0,0,0,0.4)', fontWeight: 'bold' }}
+                            minTickGap={30}
+                          />
+                          <YAxis
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 10, fill: 'rgba(0,0,0,0.4)', fontWeight: 'bold' }}
+                            tickFormatter={(value) => `₹${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}`}
+                          />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: 'white', borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
+                            itemStyle={{ color: '#10b981', fontWeight: 'bold' }}
+                          />
+                          <Area type="monotone" dataKey="volume" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorVolume)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {/* Category Breakdown Pie */}
+                    <div className="glass-card p-6 rounded-2xl bento-border flex flex-col">
+                      <div className="flex items-center gap-2 mb-6">
+                        <PieChartIcon className="w-4 h-4 text-blue-500" />
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-foreground/50">Market Categories</h3>
+                      </div>
+                      <div className="flex-1 flex items-center justify-center relative">
+                        <ResponsiveContainer width="100%" height={200}>
+                          <PieChart>
+                            <Pie
+                              data={categoryDistribution}
+                              innerRadius={60}
+                              outerRadius={80}
+                              paddingAngle={5}
+                              dataKey="value"
+                            >
+                              {categoryDistribution.map((_: any, index: number) => (
+                                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              contentStyle={{ backgroundColor: 'white', borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
+                              itemStyle={{ fontSize: '10px', fontWeight: 'bold' }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                          <span className="text-2xl font-black">{categoryDistribution.reduce((acc: number, curr: any) => acc + curr.value, 0)}</span>
+                          <span className="text-[8px] uppercase font-bold text-foreground/30">Listings</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Transaction Health Bar */}
+                    <div className="glass-card p-6 rounded-2xl bento-border flex flex-col">
+                      <div className="flex items-center gap-2 mb-6">
+                        <Activity className="w-4 h-4 text-amber-500" />
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-foreground/50">Payout Health</h3>
+                      </div>
+                      <div className="flex-1 min-h-0">
+                        <ResponsiveContainer width="100%" height={160}>
+                          <BarChart data={payoutHealth} layout="vertical">
+                            <XAxis type="number" hide />
+                            <YAxis dataKey="name" type="category" hide />
+                            <Tooltip
+                              cursor={{ fill: 'transparent' }}
+                              contentStyle={{ backgroundColor: 'white', borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
+                              itemStyle={{ fontSize: '10px', fontWeight: 'bold' }}
+                            />
+                            <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                        <div className="mt-4 space-y-2">
+                          {payoutHealth.map((item: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between text-[10px]">
+                              <div className="flex items-center gap-2 uppercase font-bold text-foreground/40">
+                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.fill }} />
+                                {item.name}
                               </div>
+                              <span className="font-bold">{item.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                              {/* Seller & Payout Info */}
-                              <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-8 lg:border-l lg:border-black/5 lg:pl-8">
-                                <div className="space-y-4">
-                                  <h4 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-foreground/40">
-                                    <CreditCard className="w-3.5 h-3.5" /> Seller Payout Info
-                                  </h4>
-                                  <div className="space-y-3 p-4 rounded-xl bg-primary-500/5 border border-primary-500/10">
-                                    {tx.seller?.upi_id ? (
-                                      <div>
-                                        <p className="text-[10px] uppercase font-bold text-primary-600/60 mb-1">UPI ID</p>
-                                        <div className="flex items-center gap-2">
-                                          <p className="font-mono text-xs sm:text-sm font-bold bg-white px-2 py-1 rounded inline-block bento-border shrink-0">{tx.seller.upi_id}</p>
+                <div className="glass-card rounded-2xl bento-border mt-8">
+                  <h3 className="font-bold uppercase tracking-wider mb-6 pb-4 border-b border-black/5 px-6 pt-6 text-sm">Recent Transactions</h3>
+                  <div className="overflow-x-auto w-full">
+                    <table className="min-w-full text-left text-xs sm:text-sm whitespace-nowrap">
+                      <thead>
+                        <tr className="text-foreground/50 uppercase tracking-wider border-b border-black/5 bg-foreground/5">
+                          <th className="py-3 px-6 font-bold">Product</th>
+                          <th className="py-3 px-6 font-bold">Buyer</th>
+                          <th className="py-3 px-6 font-bold">Seller</th>
+                          <th className="py-3 px-6 font-bold">Amount</th>
+                          <th className="py-3 px-6 font-bold">Payment</th>
+                          <th className="py-3 px-6 font-bold text-right text-[10px]">Details</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-black/5">
+                        {dashboardData?.transactions?.slice(0, 30).map((tx: any) => (
+                          <Fragment key={tx.id}>
+                            <tr className={`hover:bg-foreground/5 transition-colors cursor-pointer ${expandedTx === tx.id ? 'bg-foreground/5' : ''}`} onClick={() => setExpandedTx(expandedTx === tx.id ? null : tx.id)}>
+                              <td className="py-4 px-6 font-medium max-w-[150px] truncate">{tx.product?.title || 'Unknown'}</td>
+                              <td className="py-4 px-6">
+                                <div className="text-xs font-bold">{tx.buyer?.name}</div>
+                                <div className="text-[9px] uppercase tracking-widest text-foreground/40 font-bold">{tx.buyer?.email}</div>
+                              </td>
+                              <td className="py-4 px-6">
+                                <div className="text-xs font-bold">{tx.seller?.name}</div>
+                                <div className="text-[9px] uppercase tracking-widest text-foreground/40 font-bold">{tx.seller?.email}</div>
+                              </td>
+                              <td className="py-4 px-6 font-black text-emerald-600">₹{tx.amount_paid}</td>
+                              <td className="py-4 px-6">
+                                <span className={`px-2 py-0.5 text-[9px] uppercase font-bold rounded-full ${tx.payment_status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-700' : 'bg-amber-500/10 text-amber-700'}`}>
+                                  {tx.payment_status}
+                                </span>
+                              </td>
+                              <td className="py-4 px-6 text-right">
+                                {expandedTx === tx.id ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
+                              </td>
+                            </tr>
+
+                            {expandedTx === tx.id && (
+                              <tr className="bg-foreground/0.02 animate-in slide-in-from-top-2 duration-200">
+                                <td colSpan={6} className="p-0 border-b border-black/5">
+                                  <div className="p-4 sm:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                    {/* Buyer Info */}
+                                    <div className="space-y-4">
+                                      <h4 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-foreground/40">
+                                        <Users className="w-3.5 h-3.5" /> Buyer Details
+                                      </h4>
+                                      <div className="space-y-2 p-3 rounded-xl bg-foreground/5 border border-black/5">
+                                        <p className="font-bold text-sm">{tx.buyer?.name}</p>
+                                        <p className="text-[11px] text-foreground/60">{tx.buyer?.email}</p>
+                                        {tx.buyer?.phone_number && <p className="text-[11px] text-foreground/60 flex items-center gap-1"><Phone className="w-3 h-3" /> {tx.buyer.phone_number}</p>}
+                                      </div>
+                                    </div>
+
+                                    {/* Seller & Payout Info */}
+                                    <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-8 lg:border-l lg:border-black/5 lg:pl-8">
+                                      <div className="space-y-4">
+                                        <h4 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-foreground/40">
+                                          <CreditCard className="w-3.5 h-3.5" /> Seller Payout Info
+                                        </h4>
+                                        <div className="space-y-3 p-4 rounded-xl bg-primary-500/5 border border-primary-500/10">
+                                          {tx.seller?.upi_id ? (
+                                            <div>
+                                              <p className="text-[10px] uppercase font-bold text-primary-600/60 mb-1">UPI ID</p>
+                                              <div className="flex items-center gap-2">
+                                                <p className="font-mono text-xs sm:text-sm font-bold bg-white px-2 py-1 rounded inline-block bento-border shrink-0">{tx.seller.upi_id}</p>
+                                                <button
+                                                  onClick={(e) => { e.stopPropagation(); handleCopy(tx.seller.upi_id, `upi-${tx.id}`); }}
+                                                  className="p-1.5 rounded-md hover:bg-foreground/5 text-primary-600 transition"
+                                                >
+                                                  {copiedId === `upi-${tx.id}` ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="space-y-3">
+                                              <div>
+                                                <p className="text-[10px] uppercase font-bold text-primary-600/60 mb-1">Account Number</p>
+                                                <div className="flex items-center gap-2">
+                                                  <p className="font-mono text-xs sm:text-sm font-bold truncate">{tx.seller?.bank_account_number || 'N/A'}</p>
+                                                  {tx.seller?.bank_account_number && (
+                                                    <button
+                                                      onClick={(e) => { e.stopPropagation(); handleCopy(tx.seller.bank_account_number, `bank-${tx.id}`); }}
+                                                      className="p-1 rounded hover:bg-foreground/5 text-primary-600 transition"
+                                                    >
+                                                      {copiedId === `bank-${tx.id}` ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              </div>
+                                              <div>
+                                                <p className="text-[10px] uppercase font-bold text-primary-600/60 mb-1">IFSC Code</p>
+                                                <p className="font-mono text-xs sm:text-sm font-bold uppercase">{tx.seller?.bank_ifsc || 'N/A'}</p>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="text-[9px] text-foreground/40 space-y-0.5 border-t border-black/5 pt-2">
+                                          <p>Seller: <span className="font-bold text-foreground/70">{tx.seller?.name}</span></p>
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-4 flex flex-col justify-between">
+                                        <div>
+                                          <h4 className="text-[10px] font-bold uppercase tracking-widest text-foreground/40 mb-2">Payout Amount</h4>
+                                          <p className="text-2xl sm:text-3xl font-black text-primary-600">₹{tx.seller_payout}</p>
+                                          <p className="text-[10px] text-foreground/40 italic">Charged to buyer: ₹{tx.amount_paid}</p>
+                                        </div>
+
+                                        <div className="flex flex-col gap-2 pt-4">
+                                          {tx.payment_status === 'SUCCESS' && tx.payout_status !== 'COMPLETED' && (
+                                            <button
+                                              onClick={(e) => { e.stopPropagation(); handlePayoutStatus(tx.id, 'COMPLETED'); }}
+                                              disabled={actionLoading === tx.id || tx.payout_status === 'PENDING'}
+                                              className="w-full py-3.5 rounded-xl bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-700 disabled:opacity-40 disabled:grayscale transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/10"
+                                            >
+                                              {actionLoading === tx.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4" /> Complete Payout</>}
+                                            </button>
+                                          )}
+
+                                          {tx.payout_status === 'PENDING' && (
+                                            <p className="text-[10px] bg-amber-500/10 text-amber-700 p-3 rounded-xl font-medium leading-relaxed border border-amber-500/20">
+                                              Waiting for buyer confirmation.
+                                            </p>
+                                          )}
+
+                                          {tx.buyer_confirmed_at && (
+                                            <div className="flex flex-col gap-1 p-3 rounded-xl bg-foreground/5 border border-black/5">
+                                              <p className="text-[10px] uppercase font-black tracking-widest text-foreground/30">Buyer Confirmed Transaction</p>
+                                              <div className="flex items-center gap-2 text-xs font-bold text-foreground/70">
+                                                <Clock className="w-3.5 h-3.5" />
+                                                {new Date(tx.buyer_confirmed_at).toLocaleString()}
+                                              </div>
+                                            </div>
+                                          )}
+
+                                          {tx.payout_status === 'COMPLETED' && (
+                                            <div className="flex items-center justify-center gap-2 py-3 px-4 bg-emerald-500/10 text-emerald-700 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-emerald-500/20">
+                                              <CheckCircle2 className="w-4 h-4" /> Payout Finished
+                                            </div>
+                                          )}
+
                                           <button
-                                            onClick={(e) => { e.stopPropagation(); handleCopy(tx.seller.upi_id, `upi-${tx.id}`); }}
-                                            className="p-1.5 rounded-md hover:bg-foreground/5 text-primary-600 transition"
+                                            onClick={async (e) => { 
+                                               e.stopPropagation(); 
+                                               const confirmed = await showConfirm({
+                                                 title: 'Delete Transaction',
+                                                 message: 'Delete this transaction record?',
+                                                 confirmLabel: 'Delete',
+                                                 variant: 'danger'
+                                               });
+                                               if (confirmed) handleDeleteTx(tx.id); 
+                                             }}
+                                            className="w-full py-2 text-[10px] font-bold uppercase tracking-widest text-red-500/40 hover:text-red-600 transition mt-2"
                                           >
-                                            {copiedId === `upi-${tx.id}` ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                                            Delete Record
                                           </button>
                                         </div>
                                       </div>
-                                    ) : (
-                                      <div className="space-y-3">
-                                        <div>
-                                          <p className="text-[10px] uppercase font-bold text-primary-600/60 mb-1">Account Number</p>
-                                          <div className="flex items-center gap-2">
-                                            <p className="font-mono text-xs sm:text-sm font-bold truncate">{tx.seller?.bank_account_number || 'N/A'}</p>
-                                            {tx.seller?.bank_account_number && (
-                                              <button
-                                                onClick={(e) => { e.stopPropagation(); handleCopy(tx.seller.bank_account_number, `bank-${tx.id}`); }}
-                                                className="p-1 rounded hover:bg-foreground/5 text-primary-600 transition"
-                                              >
-                                                {copiedId === `bank-${tx.id}` ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                                              </button>
-                                            )}
-                                          </div>
-                                        </div>
-                                        <div>
-                                          <p className="text-[10px] uppercase font-bold text-primary-600/60 mb-1">IFSC Code</p>
-                                          <p className="font-mono text-xs sm:text-sm font-bold uppercase">{tx.seller?.bank_ifsc || 'N/A'}</p>
-                                        </div>
-                                      </div>
-                                    )}
+                                    </div>
                                   </div>
-                                  <div className="text-[9px] text-foreground/40 space-y-0.5 border-t border-black/5 pt-2">
-                                    <p>Seller: <span className="font-bold text-foreground/70">{tx.seller?.name}</span></p>
-                                  </div>
-                                </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        ))}
+                        {(!dashboardData?.transactions || dashboardData.transactions.length === 0) && (
+                          <tr><td colSpan={6} className="py-12 text-center text-foreground/50 italic">No transactions recorded yet.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
-                                <div className="space-y-4 flex flex-col justify-between">
-                                  <div>
-                                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-foreground/40 mb-2">Payout Amount</h4>
-                                    <p className="text-2xl sm:text-3xl font-black text-primary-600">₹{tx.seller_payout}</p>
-                                    <p className="text-[10px] text-foreground/40 italic">Charged to buyer: ₹{tx.amount_paid}</p>
-                                  </div>
 
-                                  <div className="flex flex-col gap-2 pt-4">
-                                    {tx.payment_status === 'SUCCESS' && tx.payout_status !== 'COMPLETED' && (
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); handlePayoutStatus(tx.id, 'COMPLETED'); }}
-                                        disabled={actionLoading === tx.id || tx.payout_status === 'PENDING'}
-                                        className="w-full py-3.5 rounded-xl bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-700 disabled:opacity-40 disabled:grayscale transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/10"
-                                      >
-                                        {actionLoading === tx.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4" /> Complete Payout</>}
-                                      </button>
-                                    )}
 
-                                    {tx.payout_status === 'PENDING' && (
-                                      <p className="text-[10px] bg-amber-500/10 text-amber-700 p-3 rounded-xl font-medium leading-relaxed border border-amber-500/20">
-                                        Waiting for buyer confirmation.
-                                      </p>
-                                    )}
+        {/* USER MANAGEMENT TAB */}
+        {activeTab === 'users' && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex items-center gap-2 p-1 bg-foreground/5 rounded-xl self-start w-fit">
+              {[
+                { id: 'sellers', label: 'Sellers', count: activeSellers.length, icon: Users },
+                { id: 'buyers', label: 'Buyers', count: registeredBuyers.length, icon: Mail },
+                { id: 'banned', label: 'Banned', count: bannedAccounts.length, icon: ShieldAlert }
+              ].map(sub => (
+                <button
+                  key={sub.id}
+                  onClick={() => setUserManagementTab(sub.id as any)}
+                  className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition flex items-center gap-2 ${userManagementTab === sub.id ? 'bg-background shadow-sm text-foreground' : 'text-foreground/50 hover:text-foreground'
+                    }`}
+                >
+                  <sub.icon className="w-3.5 h-3.5" />
+                  {sub.label} ({sub.count})
+                </button>
+              ))}
+            </div>
 
-                                    {tx.buyer_confirmed_at && (
-                                      <div className="flex flex-col gap-1 p-3 rounded-xl bg-foreground/5 border border-black/5">
-                                        <p className="text-[10px] uppercase font-black tracking-widest text-foreground/30">Buyer Confirmed Transaction</p>
-                                        <div className="flex items-center gap-2 text-xs font-bold text-foreground/70">
-                                          <Clock className="w-3.5 h-3.5" />
-                                          {new Date(tx.buyer_confirmed_at).toLocaleString()}
-                                        </div>
-                                      </div>
-                                    )}
+            {userManagementTab === 'sellers' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-black uppercase tracking-tighter">Verified Sellers ({activeSellers.length})</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {activeSellers.map((seller: any) => (
+                    <div key={seller.id} className="glass-card p-6 rounded-2xl bento-border transition hover:border-primary-500/30">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3 text-left">
+                          <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center">
+                            <Users className="w-5 h-5 text-primary-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-sm sm:text-base">{seller.name}</h3>
+                            <p className="text-[10px] text-foreground/50 uppercase tracking-widest font-bold truncate max-w-[150px] sm:max-w-xs">{seller.email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-red-50 p-1.5 rounded-xl border border-red-100">
+                          <select
+                            id={`ban-duration-${seller.id}`}
+                            className="bg-transparent text-[10px] font-bold uppercase tracking-widest outline-none text-red-600 cursor-pointer"
+                            defaultValue="7"
+                          >
+                            <option value="7">7 Days</option>
+                            <option value="30">30 Days</option>
+                            <option value="365">1 Year</option>
+                            <option value="permanent">Permanent</option>
+                          </select>
+                          <button
+                            onClick={() => {
+                              const select = document.getElementById(`ban-duration-${seller.id}`) as HTMLSelectElement;
+                              const duration = select.value === 'permanent' ? null : parseInt(select.value);
+                              handleBan(seller.id, duration);
+                            }}
+                            className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm shadow-red-600/20"
+                            title="Ban User"
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-xs font-bold text-foreground/60 border-t border-black/5 pt-4 mt-4">
+                        <div className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {seller.phone_number || 'No Phone'}</div>
+                        <div className="flex items-center gap-1.5 uppercase tracking-widest text-[9px]">ID: {seller.id.slice(0, 8)}...</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                                    {tx.payout_status === 'COMPLETED' && (
-                                      <div className="flex items-center justify-center gap-2 py-3 px-4 bg-emerald-500/10 text-emerald-700 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-emerald-500/20">
-                                        <CheckCircle2 className="w-4 h-4" /> Payout Finished
-                                      </div>
-                                    )}
+            {userManagementTab === 'buyers' && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <h2 className="text-xl font-black uppercase tracking-tighter">Registered Buyers ({registeredBuyers.length})</h2>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/40 text-left sm:text-right">Users without successful listings / Rejected sellers</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {registeredBuyers.map((buyer: any) => (
+                    <div key={buyer.id} className="glass-card p-6 rounded-2xl bento-border transition hover:border-blue-500/30">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3 text-left">
+                          <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                            <Mail className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-sm sm:text-base">{buyer.name}</h3>
+                            <p className="text-[10px] text-foreground/50 uppercase tracking-widest font-bold truncate max-w-[150px] sm:max-w-xs">{buyer.email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-red-50 p-1.5 rounded-xl border border-red-100">
+                          <select
+                            id={`ban-duration-${buyer.id}`}
+                            className="bg-transparent text-[10px] font-bold uppercase tracking-widest outline-none text-red-600 cursor-pointer"
+                            defaultValue="7"
+                          >
+                            <option value="7">7 Days</option>
+                            <option value="30">30 Days</option>
+                            <option value="365">1 Year</option>
+                            <option value="permanent">Permanent</option>
+                          </select>
+                          <button
+                            onClick={() => {
+                              const select = document.getElementById(`ban-duration-${buyer.id}`) as HTMLSelectElement;
+                              const duration = select.value === 'permanent' ? null : parseInt(select.value);
+                              handleBan(buyer.id, duration);
+                            }}
+                            className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm shadow-red-600/20"
+                            title="Ban User"
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-xs font-bold text-foreground/60 border-t border-black/5 pt-4 mt-4">
+                        <div className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {buyer.phone_number || 'No Phone'}</div>
+                        <div className="flex items-center gap-1.5 uppercase tracking-widest text-[9px]">Joined: {new Date(buyer.created_at).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); if (confirm('Delete this transaction?')) handleDeleteTx(tx.id); }}
-                                      className="w-full py-2 text-[10px] font-bold uppercase tracking-widest text-red-500/40 hover:text-red-600 transition mt-2"
-                                    >
-                                      Delete Record
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
+            {userManagementTab === 'banned' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-black uppercase tracking-tighter">Banned Accounts ({bannedAccounts.length})</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {bannedAccounts.map((user: any) => {
+                    const isPermanent = !user.banned_until;
+                    let timeLeftString = "Permanent";
+
+                    if (!isPermanent) {
+                      const diff = new Date(user.banned_until).getTime() - new Date().getTime();
+                      if (diff > 0) {
+                        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        timeLeftString = `${days}d ${hours}h left`;
+                      } else {
+                        timeLeftString = "Expiring soon";
+                      }
+                    }
+
+                    return (
+                      <div key={user.id} className="glass-card p-6 rounded-2xl border-2 border-red-500/10 transition hover:bg-red-500/2">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-3 text-left">
+                            <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                              <ShieldAlert className="w-5 h-5 text-red-600" />
                             </div>
+                            <div>
+                              <h3 className="font-bold text-red-600 text-sm sm:text-base">{user.name}</h3>
+                              <p className="text-[10px] text-foreground/50 uppercase tracking-widest font-bold truncate max-w-[150px] sm:max-w-xs">{user.email}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleUnban(user.id)}
+                            disabled={actionLoading === user.id}
+                            className="p-2 rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                          >
+                            <Unlock className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between text-xs font-bold border-t border-black/5 pt-4 mt-4">
+                          <div className="flex items-center gap-2 text-red-600">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span className="uppercase tracking-widest text-[9px] font-black">{timeLeftString}</span>
+                          </div>
+                          <div className="text-foreground/30 text-[9px] uppercase tracking-widest truncate max-w-[100px]">ID: {user.id.slice(0, 8)}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {bannedAccounts.length === 0 && (
+                    <div className="col-span-full p-20 text-center glass-card rounded-2xl border border-black/5 text-foreground/30 font-bold uppercase tracking-[0.2em]">
+                      Clean Record - No users banned
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* INVENTORY & MANAGEMENT TAB */}
+        {activeTab === 'inventory' && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex items-center gap-2 p-1 bg-foreground/5 rounded-xl self-start w-fit">
+              {[
+                { id: 'listings', label: 'All Listings', icon: Package },
+                { id: 'categories', label: 'Categories', icon: Tag },
+                { id: 'notes_hub', label: 'Notes Hub', icon: BookOpen }
+              ].map(sub => (
+                <button
+                  key={sub.id}
+                  onClick={() => setInventorySubTab(sub.id as any)}
+                  className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition flex items-center gap-2 ${inventorySubTab === sub.id ? 'bg-background shadow-sm text-foreground' : 'text-foreground/50 hover:text-foreground'
+                    }`}
+                >
+                  <sub.icon className="w-3.5 h-3.5" />
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+
+            {inventorySubTab === 'listings' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-black uppercase tracking-tighter">Global Listings ({dashboardData?.allProducts.length})</h2>
+                </div>
+                <div className="overflow-x-auto -mx-6 px-6">
+                  <table className="w-full text-left border-collapse min-w-[800px]">
+                    <thead>
+                      <tr className="border-b border-black/5">
+                        <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-foreground/40">Item</th>
+                        <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-foreground/40 px-4">Seller</th>
+                        <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-foreground/40 px-4">Status</th>
+                        <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-foreground/40 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-black/5">
+                      {dashboardData?.allProducts.map((p: any) => (
+                        <tr key={p.id} className="group hover:bg-foreground/0.02 transition-colors">
+                          <td className="py-4">
+                            <div className="font-bold text-sm">{p.title}</div>
+                            <div className="text-[10px] font-black text-emerald-600">₹{p.price.toLocaleString()}</div>
+                            <div className="text-[9px] text-foreground/30 uppercase font-bold tracking-widest">{p.category_id}</div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="text-xs font-bold">{p.seller?.name}</div>
+                            <div className="text-[9px] uppercase tracking-widest font-bold text-foreground/40">{p.seller?.email}</div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest ${p.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-700' :
+                              p.status === 'SOLD' ? 'bg-blue-100 text-blue-700' :
+                                p.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                                  p.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                                    'bg-gray-100 text-gray-700'
+                              }`}>
+                              {p.status}
+                            </span>
+                          </td>
+                          <td className="py-4 text-right">
+                            <button
+                              onClick={() => handleDeleteProduct(p.id, p.title)}
+                              disabled={actionLoading === p.id}
+                              className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-700 hover:text-white transition-all disabled:opacity-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </td>
                         </tr>
-                      )}
-                    </Fragment>
-                  ))}
-                  {(!dashboardData?.transactions || dashboardData.transactions.length === 0) && (
-                    <tr><td colSpan={6} className="py-12 text-center text-foreground/50 italic">No transactions recorded yet.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ENGAGEMENT TAB */}
-      {activeTab === 'engagement' && (
-        <div className="space-y-8 animate-in fade-in duration-500">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Top Products Ranking */}
-            <div className="glass-card p-6 rounded-2xl bento-border h-fit">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-primary-500" />
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/50">Top Trending Products</h3>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="text-[10px] font-black text-foreground/30 uppercase tracking-tighter">Based on Views + Intent</div>
-              </div>
-              <div className="space-y-4">
-                {dashboardData?.analytics?.topProducts?.map((p: any, i: number) => (
-                  <div key={p.product_id} className="flex items-center justify-between p-4 rounded-xl bg-foreground/2 border border-black/5 hover:bg-foreground/5 transition-colors group">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${i === 0 ? 'bg-amber-400 text-white shadow-lg shadow-amber-400/20' : i === 1 ? 'bg-slate-300 text-white' : i === 2 ? 'bg-amber-700/40 text-white' : 'bg-foreground/10 text-foreground/40'}`}>
-                        {i + 1}
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm truncate max-w-[150px] sm:max-w-xs">{p.title}</p>
-                        <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest">{p.category_name}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-6 text-right">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-black text-foreground">{p.views}</span>
-                        <span className="text-[8px] uppercase font-bold text-foreground/30 tracking-widest">Views</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-black text-primary-600">{p.interactions}</span>
-                        <span className="text-[8px] uppercase font-bold text-primary-600/40 tracking-widest">Intent</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {(!dashboardData?.analytics?.topProducts || dashboardData.analytics.topProducts.length === 0) && (
-                  <div className="py-12 text-center text-foreground/30 italic text-sm">Not enough data to rank products yet.</div>
-                )}
-              </div>
-            </div>
-
-            {/* Page Traffic Overview */}
-            <div className="glass-card p-6 rounded-2xl bento-border h-fit">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-blue-500" />
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/50">Site Traffic by Path</h3>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {dashboardData?.analytics?.topPages?.map((page: any) => (
-                  <div key={page.path} className="flex flex-col gap-1 p-3 rounded-xl hover:bg-foreground/5 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold text-foreground/70 truncate max-w-[200px]">{page.path}</span>
-                      <span className="text-xs font-black">{page.total_views.toLocaleString()} visits</span>
-                    </div>
-                    <div className="w-full h-1 bg-foreground/5 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-500 rounded-full"
-                        style={{ width: `${Math.min(100, (page.total_views / (dashboardData.analytics.topPages[0]?.total_views || 1)) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Category Wise Top Performers */}
-          <div className="glass-card p-8 rounded-2xl bento-border">
-            <div className="flex items-center gap-2 mb-8">
-              <PieChartIcon className="w-5 h-5 text-emerald-500" />
-              <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/50">Category Hotspots</h3>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {dashboardData?.categories?.map((cat: any) => {
-                const topInCat = dashboardData?.analytics?.topProducts?.find((p: any) => p.category_id === cat.id);
-                return (
-                  <div key={cat.id} className="p-4 rounded-xl bg-foreground/2 border border-black/5 flex flex-col justify-between">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-foreground/40 mb-3">{cat.name}</h4>
-                    {topInCat ? (
-                      <div>
-                        <p className="text-xs font-bold truncate mb-1">{topInCat.title}</p>
-                        <p className="text-[10px] font-black text-emerald-600">Leader ({topInCat.views} views)</p>
-                      </div>
-                    ) : (
-                      <p className="text-[10px] italic text-foreground/20">No activity yet</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SELLERS TAB */}
-      {activeTab === 'sellers' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-black uppercase tracking-tighter">Verified Sellers ({activeSellers.length})</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {activeSellers.map((seller: any) => (
-              <div key={seller.id} className="glass-card p-6 rounded-2xl bento-border transition hover:border-primary-500/30">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3 text-left">
-                    <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center">
-                      <Users className="w-5 h-5 text-primary-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-sm sm:text-base">{seller.name}</h3>
-                      <p className="text-[10px] text-foreground/50 uppercase tracking-widest font-bold truncate max-w-[150px] sm:max-w-xs">{seller.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-red-50 p-1.5 rounded-xl border border-red-100">
-                    <select
-                      id={`ban-duration-${seller.id}`}
-                      className="bg-transparent text-[10px] font-bold uppercase tracking-widest outline-none text-red-600 cursor-pointer"
-                      defaultValue="7"
-                    >
-                      <option value="7">7 Days</option>
-                      <option value="30">30 Days</option>
-                      <option value="365">1 Year</option>
-                      <option value="permanent">Permanent</option>
-                    </select>
-                    <button
-                      onClick={() => {
-                        const select = document.getElementById(`ban-duration-${seller.id}`) as HTMLSelectElement;
-                        const duration = select.value === 'permanent' ? null : parseInt(select.value);
-                        handleBan(seller.id, duration);
-                      }}
-                      className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm shadow-red-600/20"
-                      title="Ban User"
-                    >
-                      <Ban className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-4 text-xs font-bold text-foreground/60 border-t border-black/5 pt-4 mt-4">
-                  <div className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {seller.phone_number || 'No Phone'}</div>
-                  <div className="flex items-center gap-1.5 uppercase tracking-widest text-[9px]">ID: {seller.id.slice(0, 8)}...</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* BUYERS TAB */}
-      {activeTab === 'buyers' && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <h2 className="text-xl font-black uppercase tracking-tighter">Registered Buyers ({registeredBuyers.length})</h2>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/40 text-left sm:text-right">Users without successful listings / Rejected sellers</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {registeredBuyers.map((buyer: any) => (
-              <div key={buyer.id} className="glass-card p-6 rounded-2xl bento-border transition hover:border-blue-500/30">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3 text-left">
-                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                      <Mail className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-sm sm:text-base">{buyer.name}</h3>
-                      <p className="text-[10px] text-foreground/50 uppercase tracking-widest font-bold truncate max-w-[150px] sm:max-w-xs">{buyer.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-red-50 p-1.5 rounded-xl border border-red-100">
-                    <select
-                      id={`ban-duration-${buyer.id}`}
-                      className="bg-transparent text-[10px] font-bold uppercase tracking-widest outline-none text-red-600 cursor-pointer"
-                      defaultValue="7"
-                    >
-                      <option value="7">7 Days</option>
-                      <option value="30">30 Days</option>
-                      <option value="365">1 Year</option>
-                      <option value="permanent">Permanent</option>
-                    </select>
-                    <button
-                      onClick={() => {
-                        const select = document.getElementById(`ban-duration-${buyer.id}`) as HTMLSelectElement;
-                        const duration = select.value === 'permanent' ? null : parseInt(select.value);
-                        handleBan(buyer.id, duration);
-                      }}
-                      className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm shadow-red-600/20"
-                      title="Ban User"
-                    >
-                      <Ban className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-4 text-xs font-bold text-foreground/60 border-t border-black/5 pt-4 mt-4">
-                  <div className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {buyer.phone_number || 'No Phone'}</div>
-                  <div className="flex items-center gap-1.5 uppercase tracking-widest text-[9px]">Joined: {new Date(buyer.created_at).toLocaleDateString()}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* LISTINGS TAB */}
-      {activeTab === 'listings' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-black uppercase tracking-tighter">Global Listings ({dashboardData?.allProducts.length})</h2>
-          </div>
-          <div className="overflow-x-auto -mx-6 px-6">
-            <table className="w-full text-left border-collapse min-w-[800px]">
-              <thead>
-                <tr className="border-b border-black/5">
-                  <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-foreground/40">Item</th>
-                  <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-foreground/40 px-4">Seller</th>
-                  <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-foreground/40 px-4">Status</th>
-                  <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-foreground/40 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-black/5">
-                {dashboardData?.allProducts.map((p: any) => (
-                  <tr key={p.id} className="group hover:bg-foreground/0.02 transition-colors">
-                    <td className="py-4">
-                      <div className="font-bold text-sm">{p.title}</div>
-                      <div className="text-[10px] font-black text-emerald-600">₹{p.price.toLocaleString()}</div>
-                      <div className="text-[9px] text-foreground/30 uppercase font-bold tracking-widest">{p.category_id}</div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="text-xs font-bold">{p.seller?.name}</div>
-                      <div className="text-[9px] uppercase tracking-widest font-bold text-foreground/40">{p.seller?.email}</div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest ${p.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-700' :
-                        p.status === 'SOLD' ? 'bg-blue-100 text-blue-700' :
-                          p.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                            p.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                              'bg-gray-100 text-gray-700'
-                        }`}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="py-4 text-right">
-                      <button
-                        onClick={() => handleDeleteProduct(p.id, p.title)}
-                        disabled={actionLoading === p.id}
-                        className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-700 hover:text-white transition-all disabled:opacity-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* BANNED TAB */}
-      {activeTab === 'banned' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-black uppercase tracking-tighter">Banned Accounts ({bannedAccounts.length})</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {bannedAccounts.map((user: any) => {
-              const isPermanent = !user.banned_until;
-              let timeLeftString = "Permanent";
-
-              if (!isPermanent) {
-                const diff = new Date(user.banned_until).getTime() - new Date().getTime();
-                if (diff > 0) {
-                  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                  timeLeftString = `${days}d ${hours}h left`;
-                } else {
-                  timeLeftString = "Expiring soon";
-                }
-              }
-
-              return (
-                <div key={user.id} className="glass-card p-6 rounded-2xl border-2 border-red-500/10 transition hover:bg-red-500/2">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3 text-left">
-                      <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                        <ShieldAlert className="w-5 h-5 text-red-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-red-600 text-sm sm:text-base">{user.name}</h3>
-                        <p className="text-[10px] text-foreground/50 uppercase tracking-widest font-bold truncate max-w-[150px] sm:max-w-xs">{user.email}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleUnban(user.id)}
-                      disabled={actionLoading === user.id}
-                      className="p-2 rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                    >
-                      <Unlock className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between text-xs font-bold border-t border-black/5 pt-4 mt-4">
-                    <div className="flex items-center gap-2 text-red-600">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span className="uppercase tracking-widest text-[9px] font-black">{timeLeftString}</span>
-                    </div>
-                    <div className="text-foreground/30 text-[9px] uppercase tracking-widest truncate max-w-[100px]">ID: {user.id.slice(0, 8)}</div>
-                  </div>
-                </div>
-              );
-            })}
-            {bannedAccounts.length === 0 && (
-              <div className="col-span-full p-20 text-center glass-card rounded-2xl border border-black/5 text-foreground/30 font-bold uppercase tracking-[0.2em]">
-                Clean Record - No users banned
               </div>
             )}
-          </div>
-        </div>
-      )}
 
-      {/* VERIFICATION TAB (re-used logic) */}
-      {activeTab === 'verification' && (
-        products.length === 0 ? (
-          <div className="p-10 text-center glass-card rounded-2xl border border-black/5 text-foreground/60">
-            No items pending verification.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {products.map(product => {
-              const blacklistHit = findBlacklistedKeyword(product.title) || findBlacklistedKeyword(product.description || '');
-              return (
-                <div key={product.id} className={`glass-card p-4 sm:p-6 rounded-2xl flex flex-col shadow-sm border ${blacklistHit ? 'border-amber-400/50 bg-amber-500/5' : 'border-black/5'}`}>
-                  {/* Suspicious flag */}
-                  {blacklistHit && (
-                    <div className="flex items-center gap-1.5 mb-3 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg w-fit">
-                      <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Suspicious — keyword: "{blacklistHit}"</span>
-                    </div>
-                  )}
-                  <div className="flex gap-4 mb-3 items-start">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-foreground/5 rounded-xl overflow-hidden shrink-0 bento-border">
-                      {product.images?.[0] ? <img src={product.images[0]} className="w-full h-full object-cover" /> : null}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-sm sm:text-base line-clamp-1">{product.title}</h4>
-                      <p className="text-primary-600 font-bold text-xs sm:text-sm mb-1">₹{product.price}</p>
-                      <p className="text-[10px] text-foreground/50 truncate">Seller: {product.seller?.name}</p>
-                    </div>
-                  </div>
-                  {/* Description */}
-                  {product.description && (
-                    <p className="text-xs text-foreground/60 leading-relaxed bg-foreground/5 rounded-lg p-3 mb-3 line-clamp-3 border border-black/5">
-                      {product.description}
-                    </p>
-                  )}
-                  <div className="mt-auto pt-4 border-t border-black/5">
-                    {rejectingId === product.id ? (
-                      <div className="space-y-2">
-                        <textarea
-                          autoFocus
-                          rows={2}
-                          placeholder="Reason for rejection (sent to seller)..."
-                          value={rejectReasons[product.id] || ''}
-                          onChange={e => setRejectReasons(r => ({ ...r, [product.id]: e.target.value }))}
-                          className="w-full p-2.5 rounded-lg bg-white border border-red-500/20 outline-none focus:border-red-500 text-xs resize-none text-foreground"
-                        />
-                        <div className="flex gap-2">
-                          <button onClick={() => setRejectingId(null)} className="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border border-black/10 rounded-lg text-foreground/50 hover:text-foreground transition-colors">
-                            Cancel
-                          </button>
-                          <button onClick={() => handleReject(product.id, rejectReasons[product.id])} disabled={actionLoading === product.id} className="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center transition-colors">
-                            {actionLoading === product.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Confirm Reject'}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        <button
-                          id={`admin-ai-review-${product.id}`}
-                          onClick={() => handleAIReview(product.id)}
-                          disabled={!!actionLoading}
-                          className="w-full py-2 text-[10px] font-bold uppercase tracking-widest bg-violet-500/10 text-violet-600 rounded-lg hover:bg-violet-500/20 flex items-center justify-center gap-1.5 transition-colors border border-violet-500/20"
-                        >
-                          {actionLoading === `ai-${product.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Bot className="w-3.5 h-3.5" /> AI Review</>}
-                        </button>
-                        <div className="flex gap-2">
-                          <button onClick={() => setRejectingId(product.id)} disabled={!!actionLoading} className="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest bg-red-50 text-red-600 rounded-lg hover:bg-red-100 flex items-center justify-center gap-1 transition-colors">
-                            Reject
-                          </button>
-                          <button onClick={() => handleApprove(product.id)} disabled={!!actionLoading} className="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1 transition-colors shadow-md shadow-emerald-600/10">
-                            {actionLoading === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Approve'}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )
-      )}
-
-      {/* CATEGORIES TAB */}
-      {activeTab === 'categories' && (
-        <div className="max-w-4xl space-y-8">
-          <form onSubmit={handleCreateCategory} className="glass-card p-6 rounded-2xl border border-black/5 flex flex-col sm:flex-row gap-4 items-end">
-            <div className="flex-1 w-full space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 ml-1">New Category Name</label>
-              <input
-                required
-                value={newCategoryName}
-                onChange={e => setNewCategoryName(e.target.value)}
-                placeholder="e.g. Lab Equipment"
-                className="w-full px-4 py-3.5 rounded-xl bg-foreground/5 bento-border outline-none focus:border-primary-600 text-sm transition-all"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={categoryActionLoading === 'create'}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-primary-600 text-white font-bold text-xs uppercase tracking-widest hover:bg-primary-700 transition disabled:opacity-50"
-            >
-              {categoryActionLoading === 'create' ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
-              Create
-            </button>
-          </form>
-
-          <div className="glass-card rounded-2xl border border-black/5 overflow-hidden">
-            <div className="px-6 py-4 border-b border-black/5 flex items-center gap-2">
-              <Tag className="w-4 h-4 text-foreground/40" />
-              <h3 className="font-bold text-sm uppercase tracking-wider">Current Categories</h3>
-              <span className="ml-auto text-xs text-foreground/40 font-bold">{dashboardData?.categories?.length ?? 0} total</span>
-            </div>
-            <ul className="divide-y divide-black/5">
-              {dashboardData?.categories?.map((cat: any) => (
-                <li key={cat.id} className="flex items-center justify-between px-6 py-4 hover:bg-foreground/5 transition">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-primary-500" />
-                    <span className="font-semibold text-sm">{cat.name}</span>
+            {inventorySubTab === 'categories' && (
+              <div className="max-w-4xl space-y-8 animate-in fade-in duration-500">
+                <form onSubmit={handleCreateCategory} className="glass-card p-6 rounded-2xl border border-black/5 flex flex-col sm:flex-row gap-4 items-end">
+                  <div className="flex-1 w-full space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 ml-1">New Category Name</label>
+                    <input
+                      required
+                      value={newCategoryName}
+                      onChange={e => setNewCategoryName(e.target.value)}
+                      placeholder="e.g. Lab Equipment"
+                      className="w-full px-4 py-3.5 rounded-xl bg-foreground/5 bento-border outline-none focus:border-primary-600 text-sm transition-all"
+                    />
                   </div>
                   <button
-                    onClick={() => handleDeleteCategory(cat.id)}
-                    disabled={categoryActionLoading === cat.id}
-                    className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition disabled:opacity-40"
-                    title="Delete category"
+                    type="submit"
+                    disabled={categoryActionLoading === 'create'}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-primary-600 text-white font-bold text-xs uppercase tracking-widest hover:bg-primary-700 transition disabled:opacity-50"
                   >
-                    {categoryActionLoading === cat.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    {categoryActionLoading === 'create' ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+                    Create
                   </button>
-                </li>
-              ))}
-              {(!dashboardData?.categories || dashboardData.categories.length === 0) && (
-                <li className="px-6 py-8 text-center text-foreground/40 text-sm">No categories yet.</li>
-              )}
-            </ul>
-          </div>
-        </div>
-      )}
+                </form>
 
-      {/* BROADCAST TAB */}
-      {activeTab === 'broadcast' && (
-        <form onSubmit={handleBroadcast} className="glass-card p-8 rounded-2xl max-w-2xl mx-auto space-y-6 border border-black/5">
-          <div className="flex items-center gap-3 mb-2">
-            <Mail className="w-6 h-6 text-foreground/50" />
-            <h2 className="text-xl font-bold">Campus-wide Broadcast</h2>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-foreground/50">Email Subject</label>
-            <input
-              required
-              value={broadcastData.subject}
-              onChange={(e) => setBroadcastData({ ...broadcastData, subject: e.target.value })}
-              placeholder="e.g. Important Safety Update"
-              className="w-full p-3 bg-foreground/5 border border-black/5 rounded-xl outline-none focus:border-primary-500"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-foreground/50">Message Heading (Inside Email)</label>
-            <input
-              required
-              value={broadcastData.messageHeading}
-              onChange={(e) => setBroadcastData({ ...broadcastData, messageHeading: e.target.value })}
-              placeholder="e.g. Protocol Restoration Complete"
-              className="w-full p-3 bg-foreground/5 border border-black/5 rounded-xl outline-none focus:border-primary-500"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-foreground/50">Message Content</label>
-            <textarea
-              required
-              rows={8}
-              value={broadcastData.messageBody}
-              onChange={(e) => setBroadcastData({ ...broadcastData, messageBody: e.target.value })}
-              placeholder="Draft your high-fidelity campus announcement..."
-              className="w-full p-3 bg-foreground/5 border border-black/5 rounded-xl outline-none focus:border-primary-500 font-sans text-sm leading-relaxed"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isBroadcasting}
-            className="w-full py-4 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition flex items-center justify-center gap-2"
-          >
-            {isBroadcasting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Launch Campus Broadcast'}
-          </button>
-
-          {broadcastSuccess && <div className="p-4 rounded-xl bg-emerald-500/10 text-emerald-700 font-medium text-sm text-center">{broadcastSuccess}</div>}
-          {broadcastError && <div className="p-4 rounded-xl bg-red-500/10 text-red-700 font-medium text-sm text-center">{broadcastError}</div>}
-        </form>
-      )}
-
-      {/* DISPUTES TAB */}
-      {activeTab === 'disputes' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-red-500" /> Raised Tickets
-            </h2>
-            <button
-              onClick={fetchDisputes}
-              className="px-3 py-1.5 rounded-lg bg-foreground/5 text-[10px] font-bold uppercase tracking-widest hover:bg-foreground/10 transition-colors"
-            >
-              Refresh Data
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-6">
-            {disputes.map((d) => (
-              <div key={d.id} className="glass-card p-6 rounded-2xl border border-black/5 bento-border">
-                <div className="flex flex-col lg:flex-row gap-8">
-                  <div className="flex-1 space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <span className={`px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest rounded-full mb-2 inline-block ${d.status === 'OPEN' ? 'bg-red-500/10 text-red-600' : 'bg-emerald-500/10 text-emerald-600'
-                          }`}>
-                          {d.status}
-                        </span>
-                        <h3 className="font-bold text-lg">{d.product?.title}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-primary-600 bg-primary-500/10 px-2 py-0.5 rounded-sm">Initiator</span>
-                          <p className="text-xs text-foreground/70 font-bold">{d.raised_by_user?.name} ({d.raised_by_user?.email})</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] uppercase font-bold text-foreground/30">Amount</p>
-                        <p className="font-bold text-emerald-600">₹{d.product?.price}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="p-4 rounded-xl bg-foreground/5 border border-black/5">
-                        <p className="text-[10px] uppercase font-bold text-foreground/40 mb-2 flex items-center gap-1">
-                          <ShieldCheck className="w-3 h-3" /> Decrypted Reason
-                        </p>
-                        <p className="text-sm leading-relaxed text-foreground/80 italic">"{d.reason}"</p>
-                      </div>
-
-                      {d.transaction && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
-                            <p className="text-[10px] uppercase font-black tracking-widest text-blue-600 mb-2">Buyer (Contact)</p>
-                            <p className="text-sm font-bold">{d.transaction.buyer?.name}</p>
-                            <p className="text-xs text-foreground/60">{d.transaction.buyer?.email}</p>
-                            <p className="text-xs text-foreground/60 font-mono mt-1">{d.transaction.buyer?.phone_number || 'No phone'}</p>
-                          </div>
-                          <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-                            <p className="text-[10px] uppercase font-black tracking-widest text-emerald-600 mb-2">Seller (Contact)</p>
-                            <p className="text-sm font-bold">{d.transaction.seller?.name}</p>
-                            <p className="text-xs text-foreground/60">{d.transaction.seller?.email}</p>
-                            <p className="text-xs text-foreground/60 font-mono mt-1">{d.transaction.seller?.phone_number || 'No phone'}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {d.resolution && (
-                      <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-emerald-800 text-sm italic">
-                        <span className="font-bold uppercase tracking-widest text-[9px] block mb-1">Resolution Note:</span>
-                        {d.resolution}
-                      </div>
-                    )}
+                <div className="glass-card rounded-2xl border border-black/5 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-black/5 flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-foreground/40" />
+                    <h3 className="font-bold text-sm uppercase tracking-wider">Current Categories</h3>
+                    <span className="ml-auto text-xs text-foreground/40 font-bold">{dashboardData?.categories?.length ?? 0} total</span>
                   </div>
-
-                  {d.status === 'OPEN' && (
-                    <div className="lg:w-80 space-y-4 pt-4 lg:pt-0 lg:border-l lg:pl-8 border-black/5">
-                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">Resolve Ticket</h4>
-                      <textarea
-                        id={`resolution-${d.id}`}
-                        placeholder="Resolution summary..."
-                        className="w-full p-3 rounded-xl bg-foreground/5 border border-black/5 outline-none focus:border-emerald-500 text-xs resize-none"
-                        rows={3}
-                      />
-                      <div className="flex gap-2">
+                  <ul className="divide-y divide-black/5">
+                    {dashboardData?.categories?.map((cat: any) => (
+                      <li key={cat.id} className="flex items-center justify-between px-6 py-4 hover:bg-foreground/5 transition">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-primary-500" />
+                          <span className="font-semibold text-sm">{cat.name}</span>
+                        </div>
                         <button
-                          onClick={() => {
-                            const res = (document.getElementById(`resolution-${d.id}`) as HTMLTextAreaElement).value;
-                            handleResolveDispute(d.id, 'REJECTED', res);
-                          }}
-                          disabled={actionLoading === d.id}
-                          className="flex-1 py-2 rounded-lg bg-red-100 text-red-700 text-[10px] font-bold uppercase tracking-widest hover:bg-red-200 transition-colors"
+                          onClick={() => handleDeleteCategory(cat.id)}
+                          disabled={categoryActionLoading === cat.id}
+                          className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition disabled:opacity-40"
+                          title="Delete category"
                         >
-                          Reject
+                          {categoryActionLoading === cat.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                         </button>
-                        <button
-                          onClick={() => {
-                            const res = (document.getElementById(`resolution-${d.id}`) as HTMLTextAreaElement).value;
-                            handleResolveDispute(d.id, 'RESOLVED', res);
-                          }}
-                          disabled={actionLoading === d.id}
-                          className="flex-1 py-2 rounded-lg bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-colors"
-                        >
-                          {actionLoading === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : 'Resolve'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                      </li>
+                    ))}
+                    {(!dashboardData?.categories || dashboardData.categories.length === 0) && (
+                      <li className="px-6 py-8 text-center text-foreground/40 text-sm">No categories yet.</li>
+                    )}
+                  </ul>
                 </div>
-              </div>
-            ))}
-            {disputes.length === 0 && (
-              <div className="p-12 text-center glass-card rounded-2xl border border-black/5 text-foreground/50">
-                No disputes found.
               </div>
             )}
-          </div>
-        </div>
-      )}
 
-      {/* SYSTEM TAB */}
-      {activeTab === 'system' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-black uppercase tracking-tighter">Global System Controls</h2>
-            <div className="px-3 py-1 bg-primary-500/10 text-primary-700 text-[10px] font-black uppercase tracking-widest rounded-full">
-              Live Status
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Maintenance Mode Toggle */}
-            <div className="glass-card p-8 rounded-3xl border-2 border-black/5 bento-border flex flex-col justify-between group transition hover:border-black/20">
-              <div className="space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-black flex items-center justify-center text-white shadow-xl shadow-black/20 transition group-hover:scale-110">
-                  <HardHat className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black uppercase tracking-tighter">Maintenance Mode</h3>
-                  <p className="text-sm text-foreground/60 leading-relaxed mt-2">
-                    Activating this will block all non-staff users from accessing the marketplace. Use this for major site updates or logic changes.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-8 flex items-center justify-between p-4 bg-foreground/5 rounded-2xl">
+            {inventorySubTab === 'notes_hub' && (
+              <div className="space-y-8 animate-in fade-in duration-500">
                 <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${dashboardData?.isMaintenanceMode ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">
-                    Currently: {dashboardData?.isMaintenanceMode ? 'Active' : 'Offline'}
-                  </span>
-                </div>
-                <button
-                  onClick={() => handleUpdateSystem({ is_maintenance_mode: !dashboardData?.isMaintenanceMode })}
-                  disabled={handleUpdateLoading}
-                  className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isMaintenanceMode
-                    ? 'bg-white text-black hover:bg-gray-100 shadow-white/10'
-                    : 'bg-black text-white hover:bg-black/80 shadow-black/10'}`}
-                >
-                  {handleUpdateLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (dashboardData?.isMaintenanceMode ? 'Disable' : 'Enable')}
-                </button>
-              </div>
-            </div>
-
-            {/* Buying Disable Toggle */}
-            <div className="glass-card p-8 rounded-3xl border-2 border-black/5 bento-border flex flex-col justify-between group transition hover:border-black/20">
-              <div className="space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-primary-600 flex items-center justify-center text-white shadow-xl shadow-primary-600/20 transition group-hover:scale-110">
-                  <CreditCard className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black uppercase tracking-tighter">Global Purchases</h3>
-                  <p className="text-sm text-foreground/60 leading-relaxed mt-2">
-                    Disabling this will prevent users from clicking &quot;Buy Now&quot;. They can still browse, list products, and communicate. Useful for payment platform transitions.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-8 flex items-center justify-between p-4 bg-foreground/5 rounded-2xl">
-                <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${dashboardData?.isBuyingDisabled ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">
-                    Status: {dashboardData?.isBuyingDisabled ? 'Payments Disabled' : 'Payments Live'}
-                  </span>
-                </div>
-                <button
-                  onClick={() => handleUpdateSystem({ is_buying_disabled: !dashboardData?.isBuyingDisabled })}
-                  disabled={handleUpdateLoading}
-                  className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isBuyingDisabled
-                    ? 'bg-white text-black hover:bg-gray-100 shadow-white/10'
-                    : 'bg-primary-600 text-white hover:bg-primary-700 shadow-primary-600/10'}`}
-                >
-                  {handleUpdateLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (dashboardData?.isBuyingDisabled ? 'Enable Buying' : 'Disable Buying')}
-                </button>
-              </div>
-            </div>
-
-            {/* Holiday Mode Toggle */}
-            <div className="glass-card p-8 rounded-3xl border-2 border-black/5 bento-border flex flex-col justify-between group transition hover:border-black/20">
-              <div className="space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-xl shadow-emerald-600/20 transition group-hover:scale-110">
-                  <Activity className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black uppercase tracking-tighter">Holiday Mode</h3>
-                  <p className="text-sm text-foreground/60 leading-relaxed mt-2">
-                    Gracefully close the marketplace for breaks. Users will see a festive landing page while staff retain full dashboard access.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-8 flex items-center justify-between p-4 bg-foreground/5 rounded-2xl">
-                <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${dashboardData?.isHolidayMode ? 'bg-emerald-500 animate-pulse' : 'bg-foreground/20'}`} />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">
-                    Mode: {dashboardData?.isHolidayMode ? 'Holiday Break' : 'Standard'}
-                  </span>
-                </div>
-                <button
-                  onClick={() => handleUpdateSystem({ is_holiday_mode: !dashboardData?.isHolidayMode })}
-                  disabled={handleUpdateLoading}
-                  className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isHolidayMode
-                    ? 'bg-white text-emerald-600 hover:bg-gray-100 shadow-white/10'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/10'}`}
-                >
-                  {handleUpdateLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (dashboardData?.isHolidayMode ? 'Disable Holiday' : 'Enable Holiday')}
-                </button>
-              </div>
-            </div>
-
-            {/* Holiday Message Editor */}
-            <div className="md:col-span-2 glass-card p-8 rounded-3xl border-2 border-black/5 bento-border flex flex-col group transition hover:border-black/20">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                  <BookOpen className="w-8 h-8 text-primary-500" />
                   <div>
-                    <h3 className="text-xl font-black uppercase tracking-tighter">Holiday Announcement</h3>
-                    <p className="text-xs text-foreground/40 font-bold uppercase tracking-widest mt-1">Status: {dashboardData?.isHolidayMode ? 'Displayed to all users' : 'Hidden'}</p>
+                    <h2 className="text-2xl font-black uppercase tracking-tighter">Notes Hub Manager</h2>
+                    <p className="text-foreground/50 text-sm">Manage branches and subjects shown in the student wizard.</p>
                   </div>
-                </div>
-                <div className="relative group">
-                  <textarea
-                    defaultValue={dashboardData?.holidayMessage}
-                    onBlur={(e) => {
-                      if (e.target.value !== dashboardData?.holidayMessage) {
-                        handleUpdateSystem({ holiday_message: e.target.value });
-                      }
-                    }}
-                    rows={2}
-                    placeholder="Enter your festive message for the campus..."
-                    className="w-full p-6 pb-12 rounded-2xl bg-foreground/5 border border-black/5 focus:border-emerald-500 outline-none text-sm transition-all resize-none italic"
-                  />
-                  <div className="absolute bottom-4 right-6 text-[9px] font-bold uppercase tracking-widest text-foreground/30 group-focus-within:text-emerald-500 transition-colors">
-                    Auto-saves on blur
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* System Health & Security */}
-            <div className="md:col-span-2 glass-card p-8 rounded-3xl border-2 border-black/5 bento-border flex flex-col group transition hover:border-black/20">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/10">
-                      <ShieldCheck className="w-5 h-5" />
+                  <div className="ml-auto flex items-center gap-4">
+                    <div className="hidden sm:flex items-center gap-4 px-4 py-2 bg-foreground/5 rounded-xl border border-black/5">
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black uppercase text-foreground/40 leading-none">Branches</span>
+                        <span className="text-sm font-black">{noteBranches.length}</span>
+                      </div>
+                      <div className="w-px h-6 bg-black/5" />
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black uppercase text-foreground/40 leading-none">Subjects</span>
+                        <span className="text-sm font-black">{noteSubjects.length}</span>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-xl font-black uppercase tracking-tighter">Security & Health</h3>
-                      <p className="text-xs text-foreground/40 font-bold uppercase tracking-widest mt-1">Audit Logs: Enabled · Janitor: Active</p>
+                    <div className="w-full max-w-xs relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/30" />
+                      <input
+                        type="text"
+                        placeholder="Search branches or subjects..."
+                        value={notesSearchQuery}
+                        onChange={(e) => setNotesSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-foreground/5 border border-black/5 outline-none focus:border-primary-500 text-sm transition-all"
+                      />
                     </div>
                   </div>
-                  <p className="text-sm text-foreground/60 leading-relaxed max-w-xl">
-                    Our automated Janitor sweeps the platform for expired sessions and abandoned data every time an admin logs in. You can also trigger a manual deep-clean below.
-                  </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={async () => {
-                      const { runSystemJanitor } = await import('@/lib/admin-janitor');
-                      const res = await runSystemJanitor();
-                      if (res.success) {
-                        alert(`Janitor Report:\n\nStatus: ${res.status}\nItems Archived: ${res.archivedCount}\nTime: ${new Date(res.timestamp || '').toLocaleTimeString()}`);
-                      } else {
-                        alert(`Janitor Error: ${res.error}`);
-                      }
-                    }}
-                    className="px-6 py-3 rounded-xl bg-white text-black border-2 border-black/5 hover:border-black/20 text-[10px] font-black uppercase tracking-widest transition shadow-xl"
-                  >
-                    Run System Cleanup
-                  </button>
-                  <div className="px-6 py-3 rounded-xl bg-foreground/5 text-foreground/40 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 italic">
-                    <RefreshCcw className="w-3 h-3 animate-spin" />
-                    Self-Healing Active
+                {notesHubLoading ? (
+                  <div className="flex items-center gap-3 py-12 text-foreground/40"><Loader2 className="w-6 h-6 animate-spin" /><span>Loading...</span></div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                    {/* ── Branches ── */}
+                    <div className="glass-card rounded-2xl bento-border p-6 space-y-5">
+                      <h3 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Tag className="w-4 h-4 text-primary-500" />Branches ({filteredNoteBranches.length})</h3>
+
+                      {/* Add / Edit form */}
+                      {editingBranch ? (
+                        <form onSubmit={handleSaveBranch} className="space-y-3 p-4 rounded-xl bg-primary-500/5 border border-primary-500/15">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-primary-600">Editing Branch</p>
+                          <input value={editingBranch.name} onChange={e => setEditingBranch({ ...editingBranch, name: e.target.value })}
+                            className="w-full px-4 py-2.5 rounded-xl bg-white border border-black/10 text-sm outline-none focus:border-primary-500" placeholder="Branch name" />
+                          <input value={editingBranch.color_class} onChange={e => setEditingBranch({ ...editingBranch, color_class: e.target.value })}
+                            className="w-full px-4 py-2.5 rounded-xl bg-white border border-black/10 text-sm outline-none focus:border-primary-500 font-mono" placeholder="Tailwind color classes" />
+                          <div className="flex gap-2">
+                            <button type="submit" disabled={notesHubActionLoading === 'edit-branch'}
+                              className="flex-1 py-2.5 bg-primary-600 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                              {notesHubActionLoading === 'edit-branch' ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Save'}
+                            </button>
+                            <button type="button" onClick={() => setEditingBranch(null)} className="px-4 py-2.5 rounded-xl bg-foreground/5 text-xs font-bold uppercase tracking-widest hover:bg-foreground/10 transition-colors"><X className="w-4 h-4" /></button>
+                          </div>
+                        </form>
+                      ) : (
+                        <form onSubmit={handleAddBranch} className="space-y-3">
+                          <div className="flex gap-2">
+                            <input value={newBranchName} onChange={e => setNewBranchName(e.target.value)} placeholder="Branch name (e.g. CSE)"
+                              className="flex-1 px-4 py-2.5 rounded-xl bg-foreground/5 border border-black/5 text-sm outline-none focus:border-primary-500 transition-colors" />
+                            <button type="submit" disabled={notesHubActionLoading === 'add-branch' || !newBranchName.trim()}
+                              className="px-4 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                              {notesHubActionLoading === 'add-branch' ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+                            </button>
+                          </div>
+                          <select value={newBranchColor} onChange={e => setNewBranchColor(e.target.value)}
+                            className="w-full px-4 py-2.5 rounded-xl bg-foreground/5 border border-black/5 text-xs font-bold outline-none focus:border-primary-500">
+                            <option value="bg-blue-500/10 text-blue-700 border-blue-500/20">Blue</option>
+                            <option value="bg-violet-500/10 text-violet-700 border-violet-500/20">Violet</option>
+                            <option value="bg-emerald-500/10 text-emerald-700 border-emerald-500/20">Emerald</option>
+                            <option value="bg-amber-500/10 text-amber-700 border-amber-500/20">Amber</option>
+                            <option value="bg-pink-500/10 text-pink-700 border-pink-500/20">Pink</option>
+                            <option value="bg-orange-500/10 text-orange-700 border-orange-500/20">Orange</option>
+                            <option value="bg-red-500/10 text-red-700 border-red-500/20">Red</option>
+                            <option value="bg-cyan-500/10 text-cyan-700 border-cyan-500/20">Cyan</option>
+                            <option value="bg-slate-500/10 text-slate-700 border-slate-500/20">Slate</option>
+                          </select>
+                        </form>
+                      )}
+
+                      {/* Branch list */}
+                      <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {filteredNoteBranches.length === 0 && <p className="text-sm text-foreground/40 italic py-4 text-center">No matching branches found.</p>}
+                        {filteredNoteBranches.map((b: any) => (
+                          <div key={b.id} className="flex items-center justify-between p-3 rounded-xl bg-foreground/2 border border-black/5">
+                            <span className={`px-2 py-1 rounded-lg text-xs font-bold border ${b.color_class}`}>{b.name}</span>
+                            <div className="flex gap-1">
+                              <button onClick={() => setEditingBranch({ ...b })} className="p-1.5 rounded-lg hover:bg-foreground/5 text-foreground/40 hover:text-primary-600 transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => handleDeleteBranch(b.id)} disabled={notesHubActionLoading === b.id}
+                                className="p-1.5 rounded-lg hover:bg-red-50 text-foreground/40 hover:text-red-600 transition-colors">
+                                {notesHubActionLoading === b.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── Subjects ── */}
+                    <div className="glass-card rounded-2xl bento-border p-6 space-y-5">
+                      <h3 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><BookOpen className="w-4 h-4 text-emerald-500" />Subjects ({filteredNoteSubjects.length})</h3>
+
+                      {/* Add / Edit form */}
+                      {editingSubject ? (
+                        <form onSubmit={handleSaveSubject} className="space-y-3 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">Editing Subject</p>
+                          <input value={editingSubject.name} onChange={e => setEditingSubject({ ...editingSubject, name: e.target.value })}
+                            className="w-full px-4 py-2.5 rounded-xl bg-white border border-black/10 text-sm outline-none focus:border-emerald-500" placeholder="Subject name" />
+                          <div className="grid grid-cols-2 gap-2">
+                            <select value={editingSubject.semester} onChange={e => setEditingSubject({ ...editingSubject, semester: parseInt(e.target.value) })}
+                              className="px-3 py-2.5 rounded-xl bg-white border border-black/10 text-xs font-bold outline-none">
+                              <option value={0}>1st Year</option>
+                              {[3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Sem {s}</option>)}
+                            </select>
+                            <select value={editingSubject.branch} onChange={e => setEditingSubject({ ...editingSubject, branch: e.target.value })}
+                              className="px-3 py-2.5 rounded-xl bg-white border border-black/10 text-xs font-bold outline-none">
+                              <option value="Common">Common</option>
+                              {noteBranches.map((b: any) => <option key={b.id} value={b.name}>{b.name}</option>)}
+                            </select>
+                          </div>
+                          <div className="flex gap-2">
+                            <button type="submit" disabled={notesHubActionLoading === 'edit-subject'}
+                              className="flex-1 py-2.5 bg-emerald-600 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+                              {notesHubActionLoading === 'edit-subject' ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Save'}
+                            </button>
+                            <button type="button" onClick={() => setEditingSubject(null)} className="px-4 py-2.5 rounded-xl bg-foreground/5 text-xs font-bold uppercase tracking-widest hover:bg-foreground/10 transition-colors"><X className="w-4 h-4" /></button>
+                          </div>
+                        </form>
+                      ) : (
+                        <form onSubmit={handleAddSubject} className="space-y-3">
+                          <input value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} placeholder="Subject name (e.g. Engineering Maths I)"
+                            className="w-full px-4 py-2.5 rounded-xl bg-foreground/5 border border-black/5 text-sm outline-none focus:border-emerald-500 transition-colors" />
+                          <div className="grid grid-cols-2 gap-2">
+                            <select value={newSubjectSem} onChange={e => setNewSubjectSem(parseInt(e.target.value))}
+                              className="px-3 py-2.5 rounded-xl bg-foreground/5 border border-black/5 text-xs font-bold outline-none focus:border-emerald-500">
+                              <option value={0}>1st Year</option>
+                              {[3, 4, 5, 6, 7, 8].map(s => <option key={s} value={s}>Sem {s}</option>)}
+                            </select>
+                            <select value={newSubjectBranch} onChange={e => setNewSubjectBranch(e.target.value)}
+                              className="px-3 py-2.5 rounded-xl bg-foreground/5 border border-black/5 text-xs font-bold outline-none focus:border-emerald-500">
+                              <option value="Common">Common (All Branches)</option>
+                              {noteBranches.map((b: any) => <option key={b.id} value={b.name}>{b.name}</option>)}
+                            </select>
+                          </div>
+                          <button type="submit" disabled={notesHubActionLoading === 'add-subject' || !newSubjectName.trim()}
+                            className="w-full py-2.5 bg-emerald-600 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                            {notesHubActionLoading === 'add-subject' ? <Loader2 className="w-4 h-4 animate-spin" /> : <><PlusCircle className="w-4 h-4" /> Add Subject</>}
+                          </button>
+                        </form>
+                      )}
+
+                      {/* Subject Tree View */}
+                      <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                        {filteredNoteSubjects.length === 0 && (
+                          <p className="text-sm text-foreground/40 italic py-8 text-center bg-foreground/2 rounded-2xl border border-dashed border-black/10">
+                            No matching subjects found.
+                          </p>
+                        )}
+
+                        {Object.entries(subjectsTree)
+                          .sort(([a], [b]) => Number(a) - Number(b))
+                          .map(([sem, branches]) => (
+                            <div key={sem} className="space-y-2">
+                              <button
+                                onClick={() => toggleSem(Number(sem))}
+                                className="w-full flex items-center justify-between p-3 rounded-xl bg-foreground/5 hover:bg-foreground/10 transition-all group"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center shadow-sm">
+                                    <Clock className="w-4 h-4 text-primary-600" />
+                                  </div>
+                                  <span className="font-black text-sm uppercase tracking-tight">
+                                    {Number(sem) === 0 ? '1st Year (Common)' : `Semester ${sem}`}
+                                  </span>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-700">
+                                    {Object.values(branches).flat().length} Subjects
+                                  </span>
+                                </div>
+                                {expandedSems.includes(Number(sem)) ? (
+                                  <ChevronUp className="w-4 h-4 text-foreground/30 group-hover:text-foreground/60" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4 text-foreground/30 group-hover:text-foreground/60" />
+                                )}
+                              </button>
+
+                              {expandedSems.includes(Number(sem)) && (
+                                <div className="ml-4 pl-4 border-l-2 border-foreground/5 space-y-2 mt-2 animate-in slide-in-from-top-2 duration-200">
+                                  {Object.entries(branches as any)
+                                    .sort(([a], [b]) => a.localeCompare(b))
+                                    .map(([branchName, subjects]: [string, any]) => (
+                                      <div key={branchName} className="space-y-1">
+                                        <button
+                                          onClick={() => toggleBranch(Number(sem), branchName)}
+                                          className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-foreground/5 transition-all group"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-foreground/20 group-hover:bg-primary-500 transition-colors" />
+                                            <span className="text-xs font-bold uppercase tracking-widest text-foreground/60 group-hover:text-foreground">
+                                              {branchName}
+                                            </span>
+                                            <span className="text-[8px] font-black text-foreground/30">
+                                              ({subjects.length})
+                                            </span>
+                                          </div>
+                                          {expandedBranches.includes(`${sem}-${branchName}`) ? (
+                                            <ChevronUp className="w-3 h-3 text-foreground/20" />
+                                          ) : (
+                                            <ChevronDown className="w-3 h-3 text-foreground/20" />
+                                          )}
+                                        </button>
+
+                                        {expandedBranches.includes(`${sem}-${branchName}`) && (
+                                          <div className="ml-4 space-y-1 mt-1 animate-in slide-in-from-left-2 duration-200">
+                                            {subjects.map((s: any) => (
+                                              <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-white border border-black/5 hover:border-primary-500/30 hover:shadow-md transition-all group/item">
+                                                <div className="flex items-center gap-3">
+                                                  <div className="w-2 h-2 rounded-full bg-primary-500/10 group-hover/item:bg-primary-500/30 transition-colors" />
+                                                  <span className="font-bold text-sm">{s.name}</span>
+                                                </div>
+                                                <div className="flex gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                                                  <button onClick={() => setEditingSubject({ ...s })} className="p-1.5 rounded-lg hover:bg-foreground/5 text-foreground/40 hover:text-primary-600 transition-colors">
+                                                    <Pencil className="w-3.5 h-3.5" />
+                                                  </button>
+                                                  <button onClick={() => handleDeleteSubject(s.id)} disabled={notesHubActionLoading === s.id}
+                                                    className="p-1.5 rounded-lg hover:bg-red-50 text-foreground/40 hover:text-red-600 transition-colors">
+                                                    {notesHubActionLoading === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              <div className="mt-8 pt-8 border-t border-black/5 grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-foreground/30 mb-1">TTL Status</p>
-                  <p className="text-xs font-bold text-emerald-600">Active Monitoring</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-foreground/30 mb-1">Transaction Integrity</p>
-                  <p className="text-xs font-bold text-emerald-600">Level 5 Hardening</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-foreground/30 mb-1">Audit Trail</p>
-                  <p className="text-xs font-bold text-emerald-600">Encrypted Logging</p>
-                </div>
+                  <div className="mt-8 glass-card rounded-2xl bento-border p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h3 className="font-black uppercase tracking-wider text-sm flex items-center gap-2">
+                          <Search className="w-4 h-4 text-primary-500" /> 
+                          Student Search Insights
+                        </h3>
+                        <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1">
+                          Real-time discovery data from the Notes Hub
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {dashboardData?.analytics?.recentSearches?.length > 0 ? (
+                        dashboardData.analytics.recentSearches.map((s: any) => (
+                          <div key={s.id} className="p-4 rounded-xl bg-foreground/2 border border-black/5 hover:bg-foreground/5 transition-all group">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-black text-primary-600 truncate mr-2" title={s.metadata.query}>"{s.metadata.query}"</span>
+                              <span className="text-[8px] font-bold text-foreground/30 uppercase tracking-widest shrink-0">
+                                {new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] font-bold text-foreground/40 uppercase tracking-widest truncate">
+                                ID: {s.metadata.user_id === 'anonymous' ? 'Guest' : s.metadata.user_id.slice(0, 8)}
+                              </span>
+                              <span className="text-[9px] font-bold text-foreground/40 uppercase tracking-widest">
+                                {new Date(s.created_at).toLocaleDateString([], { day: 'numeric', month: 'short' })}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="col-span-full py-12 text-center text-foreground/30 text-xs font-bold uppercase tracking-widest border border-dashed border-black/10 rounded-2xl">
+                          No search data collected yet.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
               </div>
-            </div>
+            )}
           </div>
+        )}
+
+
+
+        {/* MODERATION CENTER TAB */}
+        {activeTab === 'moderation' && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex items-center gap-2 p-1 bg-foreground/5 rounded-xl self-start w-fit">
+              {[
+                { id: 'verification', label: 'Verifications', count: products.length, icon: ShieldCheck },
+                { id: 'disputes', label: 'Tickets', count: disputes.length, icon: AlertTriangle }
+              ].map(sub => (
+                <button
+                  key={sub.id}
+                  onClick={() => setModerationSubTab(sub.id as any)}
+                  className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition flex items-center gap-2 ${moderationSubTab === sub.id ? 'bg-background shadow-sm text-foreground' : 'text-foreground/50 hover:text-foreground'
+                    }`}
+                >
+                  <sub.icon className="w-3.5 h-3.5" />
+                  {sub.label} ({sub.count})
+                </button>
+              ))}
+            </div>
+
+            {moderationSubTab === 'verification' && (
+              products.length === 0 ? (
+                <div className="p-10 text-center glass-card rounded-2xl border border-black/5 text-foreground/60">
+                  No items pending verification.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {products.map(product => {
+                    const blacklistHit = findBlacklistedKeyword(product.title) || findBlacklistedKeyword(product.description || '');
+                    return (
+                      <div key={product.id} className={`glass-card p-4 sm:p-6 rounded-2xl flex flex-col shadow-sm border ${blacklistHit ? 'border-amber-400/50 bg-amber-500/5' : 'border-black/5'}`}>
+                        {/* Suspicious flag */}
+                        {blacklistHit && (
+                          <div className="flex items-center gap-1.5 mb-3 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg w-fit">
+                            <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Suspicious — keyword: "{blacklistHit}"</span>
+                          </div>
+                        )}
+                        <div className="flex gap-4 mb-3 items-start">
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-foreground/5 rounded-xl overflow-hidden shrink-0 bento-border">
+                            {product.images?.[0] ? <img src={product.images[0]} className="w-full h-full object-cover" /> : null}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-sm sm:text-base line-clamp-1">{product.title}</h4>
+                            <p className="text-primary-600 font-bold text-xs sm:text-sm mb-1">₹{product.price}</p>
+                            <p className="text-[10px] text-foreground/50 truncate">Seller: {product.seller?.name}</p>
+                          </div>
+                        </div>
+                        {/* Description */}
+                        {product.description && (
+                          <p className="text-xs text-foreground/60 leading-relaxed bg-foreground/5 rounded-lg p-3 mb-3 line-clamp-3 border border-black/5">
+                            {product.description}
+                          </p>
+                        )}
+                        <div className="mt-auto pt-4 border-t border-black/5">
+                          {rejectingId === product.id ? (
+                            <div className="space-y-2">
+                              <textarea
+                                autoFocus
+                                rows={2}
+                                placeholder="Reason for rejection (sent to seller)..."
+                                value={rejectReasons[product.id] || ''}
+                                onChange={e => setRejectReasons(r => ({ ...r, [product.id]: e.target.value }))}
+                                className="w-full p-2.5 rounded-lg bg-white border border-red-500/20 outline-none focus:border-red-500 text-xs resize-none text-foreground"
+                              />
+                              <div className="flex gap-2">
+                                <button onClick={() => setRejectingId(null)} className="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border border-black/10 rounded-lg text-foreground/50 hover:text-foreground transition-colors">
+                                  Cancel
+                                </button>
+                                <button onClick={() => handleReject(product.id, rejectReasons[product.id])} disabled={actionLoading === product.id} className="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center transition-colors">
+                                  {actionLoading === product.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Confirm Reject'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-2">
+                              <button
+                                id={`admin-ai-review-${product.id}`}
+                                onClick={() => handleAIReview(product.id)}
+                                disabled={!!actionLoading}
+                                className="w-full py-2 text-[10px] font-bold uppercase tracking-widest bg-violet-500/10 text-violet-600 rounded-lg hover:bg-violet-500/20 flex items-center justify-center gap-1.5 transition-colors border border-violet-500/20"
+                              >
+                                {actionLoading === `ai-${product.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Bot className="w-3.5 h-3.5" /> AI Review</>}
+                              </button>
+                              <div className="flex gap-2">
+                                <button onClick={() => setRejectingId(product.id)} disabled={!!actionLoading} className="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest bg-red-50 text-red-600 rounded-lg hover:bg-red-100 flex items-center justify-center gap-1 transition-colors">
+                                  Reject
+                                </button>
+                                <button onClick={() => handleApprove(product.id)} disabled={!!actionLoading} className="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1 transition-colors shadow-md shadow-emerald-600/10">
+                                  {actionLoading === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Approve'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+
+            {moderationSubTab === 'disputes' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-red-500" /> Raised Tickets
+                  </h2>
+                  <button
+                    onClick={fetchDisputes}
+                    className="px-3 py-1.5 rounded-lg bg-foreground/5 text-[10px] font-bold uppercase tracking-widest hover:bg-foreground/10 transition-colors"
+                  >
+                    Refresh Data
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6">
+                  {disputes.map((d) => (
+                    <div key={d.id} className="glass-card p-6 rounded-2xl border border-black/5 bento-border">
+                      <div className="flex flex-col lg:flex-row gap-8">
+                        <div className="flex-1 space-y-4">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <span className={`px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest rounded-full mb-2 inline-block ${d.status === 'OPEN' ? 'bg-red-500/10 text-red-600' : 'bg-emerald-500/10 text-emerald-600'
+                                }`}>
+                                {d.status}
+                              </span>
+                              <h3 className="font-bold text-lg">{d.product?.title}</h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-primary-600 bg-primary-500/10 px-2 py-0.5 rounded-sm">Initiator</span>
+                                <p className="text-xs text-foreground/70 font-bold">{d.raised_by_user?.name} ({d.raised_by_user?.email})</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] uppercase font-bold text-foreground/30">Amount</p>
+                              <p className="font-bold text-emerald-600">₹{d.product?.price}</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="p-4 rounded-xl bg-foreground/5 border border-black/5">
+                              <p className="text-[10px] uppercase font-bold text-foreground/40 mb-2 flex items-center gap-1">
+                                <ShieldCheck className="w-3 h-3" /> Decrypted Reason
+                              </p>
+                              <p className="text-sm leading-relaxed text-foreground/80 italic">"{d.reason}"</p>
+                            </div>
+
+                            {d.transaction && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
+                                  <p className="text-[10px] uppercase font-black tracking-widest text-blue-600 mb-2">Buyer (Contact)</p>
+                                  <p className="text-sm font-bold">{d.transaction.buyer?.name}</p>
+                                  <p className="text-xs text-foreground/60">{d.transaction.buyer?.email}</p>
+                                  <p className="text-xs text-foreground/60 font-mono mt-1">{d.transaction.buyer?.phone_number || 'No phone'}</p>
+                                </div>
+                                <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                                  <p className="text-[10px] uppercase font-black tracking-widest text-emerald-600 mb-2">Seller (Contact)</p>
+                                  <p className="text-sm font-bold">{d.transaction.seller?.name}</p>
+                                  <p className="text-xs text-foreground/60">{d.transaction.seller?.email}</p>
+                                  <p className="text-xs text-foreground/60 font-mono mt-1">{d.transaction.seller?.phone_number || 'No phone'}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {d.resolution && (
+                            <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-emerald-800 text-sm italic">
+                              <span className="font-bold uppercase tracking-widest text-[9px] block mb-1">Resolution Note:</span>
+                              {d.resolution}
+                            </div>
+                          )}
+                        </div>
+
+                        {d.status === 'OPEN' && (
+                          <div className="lg:w-80 space-y-4 pt-4 lg:pt-0 lg:border-l lg:pl-8 border-black/5">
+                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">Resolve Ticket</h4>
+                            <textarea
+                              id={`resolution-${d.id}`}
+                              placeholder="Resolution summary..."
+                              className="w-full p-3 rounded-xl bg-foreground/5 border border-black/5 outline-none focus:border-emerald-500 text-xs resize-none"
+                              rows={3}
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  const res = (document.getElementById(`resolution-${d.id}`) as HTMLTextAreaElement).value;
+                                  handleResolveDispute(d.id, 'REJECTED', res);
+                                }}
+                                disabled={actionLoading === d.id}
+                                className="flex-1 py-2 rounded-lg bg-red-100 text-red-700 text-[10px] font-bold uppercase tracking-widest hover:bg-red-200 transition-colors"
+                              >
+                                Reject
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const res = (document.getElementById(`resolution-${d.id}`) as HTMLTextAreaElement).value;
+                                  handleResolveDispute(d.id, 'RESOLVED', res);
+                                }}
+                                disabled={actionLoading === d.id}
+                                className="flex-1 py-2 rounded-lg bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-colors"
+                              >
+                                {actionLoading === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : 'Resolve'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {disputes.length === 0 && (
+                    <div className="p-12 text-center glass-card rounded-2xl border border-black/5 text-foreground/50">
+                      No disputes found.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* SYSTEM CONTROLS TAB - UNCONSTRAINED */}
+      {activeTab === 'system' && (
+        <div className="space-y-6 animate-in fade-in duration-500">
+          <div className="flex items-center gap-2 p-1 bg-foreground/5 rounded-xl self-start w-fit">
+            {[
+              { id: 'controls', label: 'System Controls', icon: HardHat },
+              { id: 'broadcast', label: 'Broadcast', icon: Mail }
+            ].map(sub => (
+              <button
+                key={sub.id}
+                onClick={() => setSystemSubTab(sub.id as any)}
+                className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition flex items-center gap-2 ${systemSubTab === sub.id ? 'bg-background shadow-sm text-foreground' : 'text-foreground/50 hover:text-foreground'
+                  }`}
+              >
+                <sub.icon className="w-3.5 h-3.5" />
+                {sub.label}
+              </button>
+            ))}
+          </div>
+
+          {systemSubTab === 'controls' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Maintenance Mode Toggle */}
+              <div className="glass-card p-8 rounded-3xl border-2 border-black/5 bento-border flex flex-col justify-between group transition hover:border-black/20">
+                <div className="space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-black flex items-center justify-center text-white shadow-xl shadow-black/20 transition group-hover:scale-110">
+                    <HardHat className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black uppercase tracking-tighter">Maintenance Mode</h3>
+                    <p className="text-sm text-foreground/60 leading-relaxed mt-2">
+                      Activating this will block all non-staff users from accessing the marketplace. Use this for major site updates or logic changes.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-8 flex items-center justify-between p-4 bg-foreground/5 rounded-2xl">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${dashboardData?.isMaintenanceMode ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">
+                      Currently: {dashboardData?.isMaintenanceMode ? 'Active' : 'Offline'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleUpdateSystem({ is_maintenance_mode: !dashboardData?.isMaintenanceMode })}
+                    disabled={handleUpdateLoading}
+                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isMaintenanceMode
+                      ? 'bg-white text-black hover:bg-gray-100 shadow-white/10'
+                      : 'bg-black text-white hover:bg-black/80 shadow-black/10'}`}
+                  >
+                    {handleUpdateLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (dashboardData?.isMaintenanceMode ? 'Disable' : 'Enable')}
+                  </button>
+                </div>
+              </div>
+
+              {/* Buying Disable Toggle */}
+              <div className="glass-card p-8 rounded-3xl border-2 border-black/5 bento-border flex flex-col justify-between group transition hover:border-black/20">
+                <div className="space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary-600 flex items-center justify-center text-white shadow-xl shadow-primary-600/20 transition group-hover:scale-110">
+                    <CreditCard className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black uppercase tracking-tighter">Global Purchases</h3>
+                    <p className="text-sm text-foreground/60 leading-relaxed mt-2">
+                      Disabling this will prevent users from clicking "Buy Now". They can still browse, list products, and communicate. Useful for payment platform transitions.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-8 flex items-center justify-between p-4 bg-foreground/5 rounded-2xl">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${dashboardData?.isBuyingDisabled ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">
+                      Status: {dashboardData?.isBuyingDisabled ? 'Payments Disabled' : 'Payments Live'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleUpdateSystem({ is_buying_disabled: !dashboardData?.isBuyingDisabled })}
+                    disabled={handleUpdateLoading}
+                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isBuyingDisabled
+                      ? 'bg-white text-black hover:bg-gray-100 shadow-white/10'
+                      : 'bg-primary-600 text-white hover:bg-primary-700 shadow-primary-600/10'}`}
+                  >
+                    {handleUpdateLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (dashboardData?.isBuyingDisabled ? 'Enable Buying' : 'Disable Buying')}
+                  </button>
+                </div>
+              </div>
+
+              {/* Holiday Mode Toggle */}
+              <div className="glass-card p-8 rounded-3xl border-2 border-black/5 bento-border flex flex-col justify-between group transition hover:border-black/20">
+                <div className="space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-xl shadow-emerald-600/20 transition group-hover:scale-110">
+                    <Activity className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black uppercase tracking-tighter">Holiday Mode</h3>
+                    <p className="text-sm text-foreground/60 leading-relaxed mt-2">
+                      Gracefully close the marketplace for breaks. Users will see a festive landing page while staff retain full dashboard access.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-8 flex items-center justify-between p-4 bg-foreground/5 rounded-2xl">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${dashboardData?.isHolidayMode ? 'bg-emerald-500 animate-pulse' : 'bg-foreground/20'}`} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">
+                      Mode: {dashboardData?.isHolidayMode ? 'Holiday Break' : 'Standard'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleUpdateSystem({ is_holiday_mode: !dashboardData?.isHolidayMode })}
+                    disabled={handleUpdateLoading}
+                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg ${dashboardData?.isHolidayMode
+                      ? 'bg-white text-emerald-600 hover:bg-gray-100 shadow-white/10'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/10'}`}
+                  >
+                    {handleUpdateLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (dashboardData?.isHolidayMode ? 'Disable' : 'Enable')}
+                  </button>
+                </div>
+              </div>
+
+              {/* Holiday Message Editor */}
+              <div className="md:col-span-2 glass-card p-8 rounded-3xl border-2 border-black/5 bento-border flex flex-col group transition hover:border-black/20">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xl font-black uppercase tracking-tighter">Holiday Announcement</h3>
+                      <p className="text-xs text-foreground/40 font-bold uppercase tracking-widest mt-1">Status: {dashboardData?.isHolidayMode ? 'Displayed to all users' : 'Hidden'}</p>
+                    </div>
+                  </div>
+                  <div className="relative group">
+                    <textarea
+                      defaultValue={dashboardData?.holidayMessage}
+                      onBlur={(e) => {
+                        if (e.target.value !== dashboardData?.holidayMessage) {
+                          handleUpdateSystem({ holiday_message: e.target.value });
+                        }
+                      }}
+                      rows={2}
+                      placeholder="Enter your festive message for the campus..."
+                      className="w-full p-6 pb-12 rounded-2xl bg-foreground/5 border border-black/5 focus:border-emerald-500 outline-none text-sm transition-all resize-none italic"
+                    />
+                    <div className="absolute bottom-4 right-6 text-[9px] font-bold uppercase tracking-widest text-foreground/30 group-focus-within:text-emerald-500 transition-colors">
+                      Auto-saves on blur
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {systemSubTab === 'broadcast' && (
+            <form onSubmit={handleBroadcast} className="glass-card p-8 rounded-2xl max-w-2xl mx-auto space-y-6 border border-black/5 animate-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center gap-3 mb-2">
+                <Mail className="w-6 h-6 text-foreground/50" />
+                <h2 className="text-xl font-bold">Campus-wide Broadcast</h2>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-foreground/50">Email Subject</label>
+                <input
+                  required
+                  value={broadcastData.subject}
+                  onChange={(e) => setBroadcastData({ ...broadcastData, subject: e.target.value })}
+                  placeholder="e.g. Important Safety Update"
+                  className="w-full p-3 bg-foreground/5 border border-black/5 rounded-xl outline-none focus:border-primary-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-foreground/50">Message Heading (Inside Email)</label>
+                <input
+                  required
+                  value={broadcastData.messageHeading}
+                  onChange={(e) => setBroadcastData({ ...broadcastData, messageHeading: e.target.value })}
+                  placeholder="e.g. Protocol Restoration Complete"
+                  className="w-full p-3 bg-foreground/5 border border-black/5 rounded-xl outline-none focus:border-primary-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-foreground/50">Message Content</label>
+                <textarea
+                  required
+                  rows={8}
+                  value={broadcastData.messageBody}
+                  onChange={(e) => setBroadcastData({ ...broadcastData, messageBody: e.target.value })}
+                  placeholder="Draft your high-fidelity campus announcement..."
+                  className="w-full p-3 bg-foreground/5 border border-black/5 rounded-xl outline-none focus:border-primary-500 font-sans text-sm leading-relaxed"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isBroadcasting}
+                className="w-full py-4 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition flex items-center justify-center gap-2"
+              >
+                {isBroadcasting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Launch Campus Broadcast'}
+              </button>
+
+              {broadcastSuccess && <div className="p-4 rounded-xl bg-emerald-500/10 text-emerald-700 font-medium text-sm text-center">{broadcastSuccess}</div>}
+              {broadcastError && <div className="p-4 rounded-xl bg-red-500/10 text-red-700 font-medium text-sm text-center">{broadcastError}</div>}
+            </form>
+          )}
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Eye, Database, Lock, Share2, UserX, Bell, RefreshCw, Mail as MailIcon, ShieldCheck, Cookie, UserSquare2, Fingerprint } from "lucide-react";
+import { ArrowLeft, Eye, Database, Lock, Share2, UserX, Bell, RefreshCw, Mail as MailIcon, ShieldCheck, Cookie, UserSquare2, Fingerprint, BookOpen } from "lucide-react";
 
 export const metadata = {
   title: "Privacy Policy | MNIT Marketplace",
@@ -205,6 +205,34 @@ export default function PrivacyPage() {
         {
           heading: "Grievance Redressal Officer",
           body: "In compliance with the Act, our Platform Administrator serves as the Grievance Redressal Officer for all personal data matters. We aim to resolve all grievances within the statutory timeframe.",
+        },
+      ],
+    },
+    {
+      id: "notes-hub-privacy",
+      icon: BookOpen,
+      number: "12",
+      title: "Notes Hub Data",
+      content: [
+        {
+          heading: "Data Collected on Upload",
+          body: "When you upload study material to the Notes Hub, we record: your user ID (uploader_id), the file you upload, the title, subject, branch, semester, and resource type you select. This data is stored in our Supabase database and is used solely to categorize and surface your material to other students.",
+        },
+        {
+          heading: "Anonymous Mode",
+          body: "If you enable anonymous posting, your name will not be shown on the publicly visible note card. However, your user ID is still stored internally and is accessible only to Platform Administrators for moderation and accountability purposes. Your identity will never be disclosed to other users.",
+        },
+        {
+          heading: "File Storage",
+          body: "Uploaded files (PDFs, images, DOCX) are stored in a Supabase Storage bucket under a path that includes your user ID. Files in the Notes Hub are publicly readable by URL so that students can download them. They are not behind authentication — this is intentional, as the Notes Hub is a public academic resource.",
+        },
+        {
+          heading: "Download & Interaction Counters",
+          body: "We track a download count and like count for each note. Likes are stored in a separate note_likes table linking your user ID to a note ID. This data is used solely to surface popular resources and is never shared with third parties.",
+        },
+        {
+          heading: "Deletion of Your Notes",
+          body: "You may delete notes you have uploaded at any time via your Profile > My Notes tab. Deletion permanently removes both the database record and the file from cloud storage. If you request account deletion, all notes you have uploaded — including their associated files — will be permanently removed within the 30-day deletion window.",
         },
       ],
     },

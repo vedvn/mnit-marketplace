@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '100mb',
+    },
+  },
   images: {
     // Allow Next.js <Image> to optimize images from Supabase Storage CDN
     remotePatterns: [

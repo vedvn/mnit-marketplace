@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ShoppingBag, Tag, Camera, ShieldCheck, CheckCircle2, IndianRupee, MapPin, Handshake, ArrowRight } from 'lucide-react';
+import { ShoppingBag, Tag, Camera, ShieldCheck, CheckCircle2, IndianRupee, MapPin, Handshake, ArrowRight, BookOpen, Upload, Download, GraduationCap } from 'lucide-react';
 
 export default function AboutPage() {
-  const [activeTab, setActiveTab] = useState<'buyer' | 'seller'>('buyer');
+  const [activeTab, setActiveTab] = useState<'buyer' | 'seller' | 'notes'>('buyer');
 
   return (
     <div className="min-h-screen pt-24 pb-20 px-6 max-w-4xl mx-auto relative">
@@ -45,6 +45,16 @@ export default function AboutPage() {
             }`}
           >
             I am a Seller
+          </button>
+          <button
+            onClick={() => setActiveTab('notes')}
+            className={`px-8 py-3 rounded-full text-sm font-bold transition-all duration-300 ${
+              activeTab === 'notes'
+                ? 'bg-violet-600 text-white shadow-lg'
+                : 'text-foreground/60 hover:text-foreground'
+            }`}
+          >
+            Notes Hub
           </button>
         </div>
       </div>
@@ -130,6 +140,52 @@ export default function AboutPage() {
             </div>
           </div>
         )}
+
+        {/* Notes Hub View */}
+        {activeTab === 'notes' && (
+          <div className="space-y-8 animate-fade-in-up">
+            <div className="p-5 rounded-2xl bg-violet-500/5 border border-violet-500/20 text-sm text-violet-700 font-medium">
+              📚 <strong>MNIT Notes Hub is completely free</strong> — browse without logging in, or share your own notes after signing up.
+            </div>
+            <StepCard
+              number={1}
+              icon={<GraduationCap className="w-6 h-6 text-violet-500" />}
+              title="Pick Your Year & Branch"
+              color="violet"
+              description="Start by selecting your year (1st Year or 3rd–8th Sem). For 1st Year, choose between Institute Core (common subjects) or Program Core (branch-specific). For other semesters, pick your branch directly."
+            />
+            <StepCard
+              number={2}
+              icon={<BookOpen className="w-6 h-6 text-violet-500" />}
+              title="Select Subject & Resource Type"
+              color="violet"
+              description="Choose from subjects added by your admin for that year/branch combo. Then filter by what you need — Previous Year Papers (PYPs), Lecture Notes, or Reference Books."
+            />
+            <StepCard
+              number={3}
+              icon={<Download className="w-6 h-6 text-violet-500" />}
+              title="Download & Study"
+              color="violet"
+              description="View and download PDFs, images, or documents directly. Your progress in the wizard is saved, so the next time you visit Notes Hub it remembers exactly where you were."
+            />
+            <StepCard
+              number={4}
+              icon={<Upload className="w-6 h-6 text-violet-500" />}
+              title="Give Back — Share Your Notes"
+              color="violet"
+              description="Help your juniors! Click 'Share Notes' to upload your own material. Follow the same year → branch → subject wizard, pick a resource type, give it a title, attach a file, and optionally post anonymously."
+            />
+
+            <div className="pt-8 flex flex-col sm:flex-row gap-3 justify-center">
+              <Link href="/notes" className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-violet-600 text-white font-bold hover:bg-violet-500 transition-all shadow-[0_0_30px_rgba(124,58,237,0.3)] hover:shadow-[0_0_50px_rgba(124,58,237,0.5)]">
+                Browse Notes <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link href="/notes/upload" className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl border border-black/10 text-foreground font-bold hover:bg-foreground/5 transition-all">
+                Share Notes <Upload className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -144,9 +200,9 @@ function SearchIcon(props: any) {
   );
 }
 
-function StepCard({ number, icon, title, description, color }: { number: number, icon: React.ReactNode, title: string, description: string, color: 'primary' | 'emerald' }) {
-  const bgClass = color === 'primary' ? 'bg-primary-500/10' : 'bg-emerald-500/10';
-  const textClass = color === 'primary' ? 'text-primary-500' : 'text-emerald-500';
+function StepCard({ number, icon, title, description, color }: { number: number, icon: React.ReactNode, title: string, description: string, color: 'primary' | 'emerald' | 'violet' }) {
+  const bgClass = color === 'primary' ? 'bg-primary-500/10' : color === 'emerald' ? 'bg-emerald-500/10' : 'bg-violet-500/10';
+  const textClass = color === 'primary' ? 'text-primary-500' : color === 'emerald' ? 'text-emerald-500' : 'text-violet-500';
 
   return (
     <div className="flex flex-col md:flex-row gap-6 p-6 rounded-3xl glass-card border border-black/5 shadow-lg group hover:bg-foreground/5 transition-colors">
@@ -165,3 +221,4 @@ function StepCard({ number, icon, title, description, color }: { number: number,
     </div>
   );
 }
+

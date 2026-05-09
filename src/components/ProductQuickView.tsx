@@ -21,9 +21,10 @@ import { recordProductInteraction } from '@/lib/market-actions';
 interface ProductQuickViewProps {
   product: any;
   isLoggedIn: boolean;
+  isHolidayMode?: boolean;
 }
 
-export default function ProductQuickView({ product, isLoggedIn }: ProductQuickViewProps) {
+export default function ProductQuickView({ product, isLoggedIn, isHolidayMode }: ProductQuickViewProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -128,6 +129,7 @@ export default function ProductQuickView({ product, isLoggedIn }: ProductQuickVi
                     isLoggedIn={isLoggedIn}
                     productTitle={product.title}
                     variant="compact"
+                    isHolidayMode={isHolidayMode}
                   />
                   <Link
                     href={`/market/${product.id}`}

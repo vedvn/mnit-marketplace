@@ -3,16 +3,18 @@
 import { useState } from 'react';
 import { AlertTriangle, X, Loader2 } from 'lucide-react';
 import { requestAccountDeletion } from '@/lib/profile-actions';
+import { useNotification } from '@/components/ui/NotificationProvider';
 
 export default function DeleteAccountButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { showToast } = useNotification();
 
   async function handleConfirm() {
     setLoading(true);
     const result = await requestAccountDeletion();
     if (result.error) {
-      alert(result.error);
+      showToast(result.error, 'error');
       setLoading(false);
       setIsOpen(false);
     } else {

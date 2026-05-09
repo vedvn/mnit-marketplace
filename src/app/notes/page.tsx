@@ -1,4 +1,4 @@
-import { getNotes, getUserNoteLikes } from '@/lib/notes-actions';
+import { getNotes, getUserNoteLikes, getNoteBranches } from '@/lib/notes-actions';
 import { createClient } from '@/lib/supabase/server';
 import { Metadata } from 'next';
 import NotesGrid from './NotesGrid';
@@ -12,9 +12,10 @@ export default async function NotesPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const [notes, userLikedNotes] = await Promise.all([
+  const [notes, userLikedNotes, branches] = await Promise.all([
     getNotes(),
     user ? getUserNoteLikes(user.id) : Promise.resolve([]),
+    getNoteBranches(),
   ]);
 
   return (
@@ -23,6 +24,7 @@ export default async function NotesPage() {
         initialNotes={notes as any}
         userLikedNotes={userLikedNotes}
         isLoggedIn={!!user}
+        branches={branches as any}
       />
     </div>
   );

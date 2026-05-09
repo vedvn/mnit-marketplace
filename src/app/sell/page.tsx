@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { getCategories, createProduct } from '@/lib/market-actions';
+import { getCategories, createProduct, getPlatformFeePercent } from '@/lib/market-actions';
 import { Loader2, ImagePlus, X, AlertCircle, Camera, QrCode, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import QRCode from 'react-qr-code';
@@ -40,9 +40,7 @@ export default function SellPage() {
     getCategories().then(setCategories);
     
     // Fetch fee percent
-    supabase.from('admin_settings').select('platform_fee_percent').single().then(({data}) => {
-      if (data?.platform_fee_percent) setFeePercent(Number(data.platform_fee_percent));
-    });
+    getPlatformFeePercent().then(setFeePercent);
     
     // Check if device is desktop
     const userAgent = window.navigator.userAgent;

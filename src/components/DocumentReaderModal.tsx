@@ -24,14 +24,25 @@ export default function DocumentReaderModal({ note, onClose }: { note: NoteForMo
     };
   }, [onClose]);
 
-  // Google Docs viewer gives best cross-browser PDF rendering
-  const viewerSrc = note.file_type === 'pdf'
-    ? `https://docs.google.com/viewer?url=${encodeURIComponent(note.file_url)}&embedded=true`
+  const isDriveUrl = note.file_url.includes('drive.google.com');
+
+  const viewerSrc = isDriveUrl
+    ? note.file_url // Drive preview url works perfectly in iframe
+    : note.file_type === 'pdf'
+      ? `https://docs.google.com/viewer?url=${encodeURIComponent(note.file_url)}&embedded=true`
+      : note.file_url;
+
+  const downloadUrl = isDriveUrl
+    ? note.file_url.replace('/preview', '').replace('https://drive.google.com/file/d/', 'https://drive.google.com/uc?export=download&id=')
+    : note.file_url;
+
+  const externalLinkUrl = isDriveUrl
+    ? note.file_url.replace('/preview', '/view')
     : note.file_url;
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6"
+      className="fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-6"
       style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(10px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
@@ -49,7 +60,7 @@ export default function DocumentReaderModal({ note, onClose }: { note: NoteForMo
 
           <div className="flex items-center gap-2 shrink-0">
             <a
-              href={note.file_url}
+              href={externalLinkUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg bg-foreground/5 hover:bg-foreground/10 transition text-[9px] font-bold uppercase tracking-widest text-foreground/60"
@@ -57,8 +68,9 @@ export default function DocumentReaderModal({ note, onClose }: { note: NoteForMo
               <ExternalLink className="w-3.5 h-3.5" /> New Tab
             </a>
             <a
-              href={note.file_url}
-              download={note.file_name}
+              href={downloadUrl}
+              download={!isDriveUrl ? note.file_name : undefined}
+              target={isDriveUrl ? "_blank" : undefined}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition text-[9px] font-bold uppercase tracking-widest"
             >
               <Download className="w-3.5 h-3.5" /> Download
@@ -75,7 +87,7 @@ export default function DocumentReaderModal({ note, onClose }: { note: NoteForMo
 
         {/* Document */}
         <div className="flex-1 bg-gray-100 min-h-0">
-          {note.file_type === 'image' ? (
+          {note.file_type === 'image' && !isDriveUrl ? (
             <div className="w-full h-full flex items-center justify-center p-6">
               <img
                 src={note.file_url}

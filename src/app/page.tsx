@@ -3,8 +3,8 @@ import { ArrowRight, ShoppingBag, ShieldCheck, Zap, Camera, CreditCard, Handshak
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'MNIT Marketplace | The Exclusive Campus Marketplace',
-  description: 'The official way for MNIT Jaipur students to buy and sell used items securely. Join the campus exclusive community today.',
+  title: 'MNIT Marketplace | Campus Marketplace & Notes Hub',
+  description: 'The official way for MNIT Jaipur students to buy, sell used items securely — and share notes, PYPs & reference books for free.',
 };
 
 export default function Home() {
@@ -24,7 +24,7 @@ export default function Home() {
         </h1>
 
         <p className="text-xl md:text-2xl text-foreground/70 max-w-2xl mb-12 font-sans font-light leading-relaxed">
-          Buy, sell, and discover items exclusively within the MNIT community. Secure payments, zero haggling, and verified student profiles.
+          Buy, sell, and discover items exclusively within the MNIT community — and access free notes, PYPs, and reference books shared by fellow students.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-0 w-full sm:w-auto">
@@ -32,21 +32,21 @@ export default function Home() {
             Explore Market
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
-          <Link href="/sell" className="flex items-center justify-center gap-3 px-10 py-5 bg-white text-foreground font-bold text-sm uppercase tracking-widest hover:bg-foreground/5 transition-colors bento-border">
-            List an Item
+          <Link href="/notes" className="flex items-center justify-center gap-3 px-10 py-5 bg-white text-foreground font-bold text-sm uppercase tracking-widest hover:bg-foreground/5 transition-colors bento-border">
+            Browse Notes
           </Link>
         </div>
       </section>
 
       {/* ─── STATS TICKER ─── */}
       <section className="w-full bento-border-b overflow-hidden bg-zinc-950">
-        <div className="flex items-center divide-x divide-zinc-800 overflow-x-auto scrollbar-hide">
+      <div className="flex items-center divide-x divide-zinc-800 overflow-x-auto scrollbar-hide">
           {[
             { value: "100%", label: "MNIT Verified Users" },
-            { value: "₹0", label: "Hidden Fees" },
-            { value: "12h", label: "Safety Hold Period" },
+            { value: "₹0",   label: "Hidden Fees" },
+            { value: "Free", label: "Notes Hub Access" },
+            { value: "PYPs", label: "Previous Year Papers" },
             { value: "Live", label: "Photo Verification" },
-            { value: "Razorpay", label: "Secure Payments" },
             { value: "Zero", label: "Tolerance for Fraud" },
           ].map(({ value, label }) => (
             <div key={label} className="shrink-0 px-10 py-6 text-center">
@@ -126,6 +126,51 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ─── NOTES HUB PROMO ─── */}
+      <section className="w-full bento-border-b bg-zinc-950 text-white">
+        <div className="max-w-7xl mx-auto px-6 py-24 grid grid-cols-1 md:grid-cols-2 gap-0">
+          {/* Left */}
+          <div className="md:pr-16 md:border-r border-zinc-800 pb-12 md:pb-0">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-2 h-2 bg-primary-500 rounded-full" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Free Forever</span>
+            </div>
+            <h2 className="text-4xl md:text-6xl display-title uppercase mb-6 leading-none wrap-break-word">
+              Notes<br />
+              <span className="text-primary-500">Hub.</span>
+            </h2>
+            <p className="text-zinc-400 text-base md:text-lg font-light leading-relaxed max-w-md mb-8">
+              A free, student-powered library of notes, previous year papers, and reference books — organized by year, branch, and subject. No login needed to browse.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-0">
+              <Link href="/notes" className="group flex items-center justify-center gap-3 px-8 py-4 bg-primary-600 text-white font-bold text-sm uppercase tracking-widest hover:bg-primary-900 transition-colors">
+                Browse Notes <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link href="/notes/upload" className="flex items-center justify-center gap-3 px-8 py-4 bg-transparent text-white font-bold text-sm uppercase tracking-widest hover:bg-white/5 transition-colors border border-zinc-700">
+                Share Your Notes
+              </Link>
+            </div>
+          </div>
+          {/* Right */}
+          <div className="md:pl-16 pt-12 md:pt-0 space-y-8">
+            {[
+              { emoji: "📝", title: "Previous Year Papers", desc: "Ace your exams with PYPs shared by seniors across all branches and semesters." },
+              { emoji: "📖", title: "Lecture Notes", desc: "Comprehensive notes for institute core and program core subjects, organized by branch." },
+              { emoji: "📚", title: "Reference Books", desc: "Recommended textbooks and references for every subject, curated by students who've taken the course." },
+              { emoji: "🕵️", title: "Anonymous Sharing", desc: "Share notes anonymously — your name never appears unless you choose to show it." },
+            ].map(({ emoji, title, desc }) => (
+              <div key={title} className="flex items-start gap-4 sm:gap-5">
+                <div className="w-10 h-10 flex items-center justify-center border border-zinc-700 shrink-0 text-lg">{emoji}</div>
+                <div>
+                  <h3 className="font-bold text-white mb-1 uppercase tracking-wide text-xs sm:text-sm">{title}</h3>
+                  <p className="text-zinc-500 text-xs sm:text-sm leading-relaxed font-sans">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ─── ANTI-SCAM PROMISE ─── */}
       <section className="w-full bento-border-b bg-zinc-950 text-white">
         <div className="max-w-7xl mx-auto px-6 py-24 w-full overflow-hidden">
@@ -181,15 +226,15 @@ export default function Home() {
           </div>
           <h2 className="text-4xl md:text-7xl display-title uppercase leading-none wrap-break-word">
             Your campus.<br />
-            Your <span className="text-primary-600">market.</span>
+            Your <span className="text-primary-600">community.</span>
           </h2>
         </div>
         <div className="flex flex-col sm:flex-row gap-0 w-full md:w-auto shrink-0">
           <Link href="/market" className="group flex items-center justify-center gap-3 w-full sm:w-auto px-10 py-5 bg-primary-600 text-white font-bold text-sm uppercase tracking-widest hover:bg-primary-900 transition-colors">
-            Browse Now <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            Browse Market <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
-          <Link href="/sell" className="flex items-center justify-center gap-3 w-full sm:w-auto px-10 py-5 bg-white text-foreground font-bold text-sm uppercase tracking-widest hover:bg-foreground/5 transition-colors bento-border">
-            Start Selling
+          <Link href="/notes" className="flex items-center justify-center gap-3 w-full sm:w-auto px-10 py-5 bg-white text-foreground font-bold text-sm uppercase tracking-widest hover:bg-foreground/5 transition-colors bento-border">
+            Notes Hub
           </Link>
         </div>
       </section>

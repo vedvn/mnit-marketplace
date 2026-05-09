@@ -1,4 +1,5 @@
 import { getProducts, getCategories } from '@/lib/market-actions';
+import { getAdminSettingsCached } from '@/lib/settings';
 import { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 
@@ -8,10 +9,16 @@ export const metadata: Metadata = {
 };
 import Link from 'next/link';
 import MarketGrid from './MarketGrid';
+import SellHolidayButton from '@/components/SellHolidayButton';
 
 export default async function MarketPage() {
   const products = await getProducts();
   const categories = await getCategories();
+
+  const { createAdminClient } = await import('@/lib/supabase/admin');
+  const adminSupabase = createAdminClient();
+  const settings = await getAdminSettingsCached();
+  const isHolidayMode = settings?.is_holiday_mode ?? false;
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -24,15 +31,25 @@ export default async function MarketPage() {
           <h1 className="text-6xl display-title uppercase mb-2">Market.</h1>
           <p className="mono-subtitle">Find great deals from verified MNIT students</p>
         </div>
-        <Link 
-          href="/sell" 
-          className="px-8 py-3 bg-primary-600 text-white font-bold text-xs uppercase tracking-widest hover:bg-primary-900 transition-colors"
-        >
-          Sell an Item
-        </Link>
+        {isHolidayMode ? (
+          <SellHolidayButton />
+        ) : (
+          <Link 
+            href="/sell" 
+            className="px-8 py-3 bg-primary-600 text-white font-bold text-xs uppercase tracking-widest hover:bg-primary-900 transition-colors"
+          >
+            Sell an Item
+          </Link>
+        )}
       </div>
 
-      <MarketGrid initialProducts={products} categories={categories} isLoggedIn={isLoggedIn} currentUserId={user?.id} />
+      <MarketGrid 
+        initialProducts={products} 
+        categories={categories} 
+        isLoggedIn={isLoggedIn} 
+        currentUserId={user?.id} 
+        isHolidayMode={isHolidayMode}
+      />
     </div>
   );
 }

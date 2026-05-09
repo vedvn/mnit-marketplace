@@ -4,7 +4,7 @@
 -- 1. Create Analytics Table
 CREATE TABLE IF NOT EXISTS public.site_analytics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_type TEXT NOT NULL CHECK (event_type IN ('PAGE_VIEW', 'PRODUCT_INTERACTION')),
+    event_type TEXT NOT NULL CHECK (event_type IN ('PAGE_VIEW', 'PRODUCT_INTERACTION', 'NOTE_DOWNLOAD', 'NOTE_SEARCH')),
     path TEXT NOT NULL,
     product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
     category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,

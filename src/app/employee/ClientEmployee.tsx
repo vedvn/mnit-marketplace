@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { CAMPUS_SAFE_ZONES } from '@/lib/constants/locations';
 import { findBlacklistedKeyword } from '@/lib/constants/blacklist';
+import { useNotification } from '@/components/ui/NotificationProvider';
 
 export default function ClientEmployee() {
   const [products, setProducts] = useState<any[]>([]);
@@ -29,6 +30,7 @@ export default function ClientEmployee() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReasons, setRejectReasons] = useState<Record<string, string>>({});
+  const { showToast } = useNotification();
 
   useEffect(() => {
     if (activeTab === 'verification') {
@@ -93,7 +95,7 @@ export default function ClientEmployee() {
   async function handleAIReview(id: string) {
     setActionLoading(`ai-${id}`);
     const result = await triggerAIReview(id);
-    if (result?.error) alert(`AI Review failed: ${result.error}`);
+    if (result?.error) showToast(`AI Review failed: ${result.error}`, 'error');
     await fetchProducts();
     setActionLoading(null);
   }
