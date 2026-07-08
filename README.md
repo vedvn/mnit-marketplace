@@ -58,6 +58,14 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) to view the app.
 
-> ## 📄 License
-Copyright (c) 2026 Ved Narasalagi. All Rights Reserved.
-This source code is proprietary. No part of this repository may be copied, modified, distributed, or used in any form without prior written permission from the copyright holder.
+## License
+
+This project, **MNIT MarketPlace**, is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0) by Ved Narasalagi (@vedvn). 
+
+- **Attribution:** Others can share, copy, and modify this code, but they must give appropriate credit to Ved Narasalagi.
+- **Non-Commercial:** Others **cannot** use this code or platform for commercial purposes, sales, or financial gain.
+
+For the full legal terms, please read the [LICENSE](LICENSE) file or visit the [Creative Commons Website](http://creativecommons.org).
+
+### Commercial Use & Inquiries
+If you are interested in using MNIT MarketPlace for commercial purposes or campus-wide deployment with financial features enabled, please contact me directly via my GitHub profile or open an issue.
