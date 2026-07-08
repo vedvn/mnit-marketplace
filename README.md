@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MNIT Marketplace
 
-## Getting Started
+A full-stack campus marketplace platform built for MNIT Jaipur students to buy, sell, and exchange goods within a trusted campus community along with a dedicated space to share notes and previous year question papers (PYQs).
 
-First, run the development server:
+🔗 **Live:** [mnitmarketplace.store](https://mnitmarketplace.store)
+
+> ## ✨ Features
+- Buy and sell listings within the MNIT student community
+- AI-assisted listing verification powered by the Groq API
+- Secure payments via Razorpay, with an integrated commission model
+- Notes & PYQ sharing, backed by the Google Drive API for storage
+- Automated email notifications via Resend
+
+> ## 🛠️ Tech Stack
+- **Framework:** Next.js 16 (App Router)
+- **Language:** TypeScript
+- **Database:** Supabase (PostgreSQL)
+- **Styling:** Tailwind CSS v4
+- **Auth:** Supabase Auth (`@supabase/ssr`)
+- **Payments:** Razorpay
+- **AI Integration:** Groq API (listing verification) *(called via direct REST/fetch — no SDK dependency, so it won't appear in package.json)*
+- **Email:** Resend + React Email (styled transactional emails)
+- **File Storage:** Google Drive API (notes & PYQs)
+- **Animations:** Framer Motion
+- **Icons:** Lucide React
+- **Charts/Analytics:** Recharts
+- **Data Export:** csv-stringify
+- **Deployment:** Vercel
+
+> ## Getting Started
+
+Clone the repo and install dependencies:
+
+```bash
+git clone https://github.com/vedvn/mnit-marketplace.git
+cd mnit-marketplace
+npm install
+```
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+GROQ_API_KEY=your_groq_api_key
+RESEND_API_KEY=your_resend_api_key
+GOOGLE_DRIVE_CLIENT_ID=your_google_drive_client_id
+GOOGLE_DRIVE_CLIENT_SECRET=your_google_drive_client_secret
+```
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> ## 📄 License
+Copyright (c) 2026 Ved Narasalagi. All Rights Reserved.
+This source code is proprietary. No part of this repository may be copied, modified, distributed, or used in any form without prior written permission from the copyright holder.
