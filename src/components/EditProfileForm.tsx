@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { User, Phone, Landmark, Hash, Smartphone, Loader2, CheckCircle2, X, Building2 } from 'lucide-react';
 import { updateUserProfile, updateUserFinancials } from '@/lib/profile-actions';
 
@@ -16,6 +17,9 @@ interface EditProfileFormProps {
 
 export default function EditProfileForm({ initialData }: EditProfileFormProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -87,9 +91,9 @@ export default function EditProfileForm({ initialData }: EditProfileFormProps) {
         Edit My Profile
       </button>
 
-      {isOpen && (
-        <div className="fixed inset-0 z-100 flex items-start justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 pt-24 sm:pt-6 overflow-y-auto">
-          <div className="w-full max-w-xl glass-card rounded-[2.5rem] border border-white/20 p-6 sm:p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 mb-6">
+      {isOpen && mounted && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 overflow-y-auto">
+          <div className="w-full max-w-xl glass-card rounded-[2.5rem] border border-white/20 p-6 sm:p-8 shadow-2xl relative animate-in zoom-in-95 duration-300">
             <button
               onClick={() => setIsOpen(false)}
               className="absolute top-6 right-6 p-2 rounded-full hover:bg-foreground/10 text-foreground/40 transition-colors"
@@ -223,7 +227,8 @@ export default function EditProfileForm({ initialData }: EditProfileFormProps) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

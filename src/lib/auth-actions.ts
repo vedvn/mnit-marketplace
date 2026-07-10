@@ -1,8 +1,10 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { triggerSignupOtpEmail, triggerPasswordResetOtpEmail, triggerMagicLinkOtpEmail } from './email-service';
 
 // ─── SIGNUP (Password + Email Verification via Supabase) ──────────────────────
 export async function signUp(formData: FormData) {
@@ -20,9 +22,10 @@ export async function signUp(formData: FormData) {
     return { error: 'Please enter your full name.' };
   }
 
-  const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'signup',
     email,
     password,
     options: { data: { full_name: name } },
@@ -33,6 +36,11 @@ export async function signUp(formData: FormData) {
       return { error: 'An account with this email already exists. Please log in instead.' };
     }
     return { error: error.message };
+  }
+
+  const otp = data.properties?.email_otp;
+  if (otp) {
+    await triggerSignupOtpEmail(email, name, otp);
   }
 
   return { success: true };
@@ -82,15 +90,20 @@ export async function sendOTP(formData: FormData) {
     return { error: 'Please use your valid @mnit.ac.in student email.' };
   }
 
-  const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
 
-  const { error } = await supabase.auth.signInWithOtp({
+  const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'magiclink',
     email,
-    options: { shouldCreateUser: false },
   });
 
   if (error) {
     return { error: error.message };
+  }
+
+  const otp = data.properties?.email_otp;
+  if (otp) {
+    await triggerMagicLinkOtpEmail(email, otp);
   }
 
   return { success: true, email };
@@ -106,7 +119,7 @@ export async function verifyOTP(formData: FormData) {
 
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+  const { error } = await supabase.auth.verifyOtp({ email, token, type: 'magiclink' });
 
   if (error) {
     return { error: error.message };
@@ -151,14 +164,20 @@ export async function requestResetOTP(formData: FormData) {
     return { error: 'Please use your valid @mnit.ac.in student email.' };
   }
 
-  const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
 
-  // Supabase resetPasswordForEmail sends an OTP if configured, or a link.
-  // We specify the flow to ensure recovery type is triggered.
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'recovery',
+    email,
+  });
 
   if (error) {
     return { error: error.message };
+  }
+
+  const otp = data.properties?.email_otp;
+  if (otp) {
+    await triggerPasswordResetOtpEmail(email, otp);
   }
 
   return { success: true, email };

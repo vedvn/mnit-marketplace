@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Loader2, Send, X, ChevronDown, ShieldCheck, ShoppingBag, Tag } from 'lucide-react';
 import { raiseDispute } from '@/lib/profile-actions';
 
@@ -29,6 +30,8 @@ export default function DisputeForm({
   triggerClassName
 }: DisputeFormProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const [reportType, setReportType] = useState<'general' | 'purchase' | 'listing' | null>(null);
   const [reason, setReason] = useState('');
   const [category, setCategory] = useState('');
@@ -94,9 +97,11 @@ export default function DisputeForm({
     );
   }
 
-  return (
-    <div className="fixed inset-0 z-100 flex items-start justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 pt-24 sm:pt-6 overflow-y-auto">
-      <div className="w-full max-w-md glass-card p-6 sm:p-8 rounded-3xl border border-black/10 shadow-2xl relative animate-in zoom-in-95 duration-200 mb-6">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+      <div className="w-full max-w-md glass-card p-6 sm:p-8 rounded-3xl border border-black/10 shadow-2xl relative animate-in zoom-in-95 duration-200">
         <button
           onClick={() => setIsOpen(false)}
           className="absolute top-6 right-6 p-2 rounded-full hover:bg-foreground/5 text-foreground/40 transition-colors"
@@ -272,6 +277,7 @@ export default function DisputeForm({
           </form>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -12,6 +12,9 @@ import SellerReceiptConfirmedEmail from './emails/SellerReceiptConfirmedEmail';
 import ItemReceivedEmail from './emails/ItemReceivedEmail';
 import OrderConfirmedEmail from './emails/OrderConfirmedEmail';
 import AdminProductAlertEmail from './emails/AdminProductAlertEmail';
+import SignupOtpEmail from './emails/SignupOtpEmail';
+import PasswordResetOtpEmail from './emails/PasswordResetOtpEmail';
+import MagicLinkOtpEmail from './emails/MagicLinkOtpEmail';
 
 /**
  * Direct Service Calls for Platform Emails
@@ -25,6 +28,33 @@ export async function triggerWelcomeEmail(email: string, name: string) {
     to: email,
     subject: 'Welcome to MNIT Marketplace!',
     react: WelcomeEmail({ name }),
+  });
+}
+
+export async function triggerSignupOtpEmail(email: string, name: string, otp: string) {
+  console.log(`[EmailService] Triggering Signup OTP Email to ${email}`);
+  return sendEmail({
+    to: email,
+    subject: 'Your MNIT Marketplace Registration OTP',
+    react: SignupOtpEmail({ name, otp }),
+  });
+}
+
+export async function triggerPasswordResetOtpEmail(email: string, otp: string) {
+  console.log(`[EmailService] Triggering Password Reset OTP Email to ${email}`);
+  return sendEmail({
+    to: email,
+    subject: 'Your MNIT Marketplace Password Reset OTP',
+    react: PasswordResetOtpEmail({ otp }),
+  });
+}
+
+export async function triggerMagicLinkOtpEmail(email: string, otp: string) {
+  console.log(`[EmailService] Triggering Magic Link OTP Email to ${email}`);
+  return sendEmail({
+    to: email,
+    subject: 'Your MNIT Marketplace Login OTP',
+    react: MagicLinkOtpEmail({ otp }),
   });
 }
 

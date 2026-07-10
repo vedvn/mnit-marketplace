@@ -74,7 +74,8 @@ export async function POST(request: NextRequest) {
     const refreshToken = process.env.GOOGLE_REFRESH_TOKEN?.replace(/^'|'$/g, '');
 
     if (!driveFolderId || !clientId || !clientSecret || !refreshToken) {
-      return NextResponse.json({ error: 'Google Drive OAuth credentials missing in .env.local.' });
+      console.error('Note upload: Google Drive OAuth credentials are not configured in environment variables.');
+      return NextResponse.json({ error: 'File storage is not configured. Please contact support.' });
     }
 
     const { google } = require('googleapis');
@@ -136,8 +137,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (dbError) {
+      console.error('Note upload DB error:', dbError.message);
       await drive.files.delete({ fileId: driveFileId }).catch(() => {});
-      return NextResponse.json({ error: `Failed to save: ${dbError.message}` });
+      return NextResponse.json({ error: 'Failed to save note. Please try again.' });
     }
 
     revalidatePath('/notes');
@@ -145,8 +147,7 @@ export async function POST(request: NextRequest) {
   } catch (err: any) {
     console.error('Note upload error:', err);
     return NextResponse.json({ 
-      error: 'Upload failed: ' + (err.message || 'Unexpected error'),
-      stack: err.stack 
+      error: 'Upload failed. Please try again or contact support.',
     }, { status: 500 });
   }
 }

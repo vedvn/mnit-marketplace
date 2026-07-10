@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { getNoteSubjects } from '@/lib/notes-actions';
-import { Upload, FileText, X, CheckCircle2, Loader2, Eye, EyeOff, GraduationCap, ArrowLeft, ChevronRight, Plus, AlertCircle } from 'lucide-react';
+import { Upload, FileText, X, CheckCircle2, Loader2, Eye, EyeOff, GraduationCap, ArrowLeft, ChevronRight, Plus, AlertCircle, SendHorizonal, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 type FileEntry = { id: string; title: string; file: File | null };
@@ -66,6 +66,14 @@ export default function NoteUploadForm({ branches }: { branches: Branch[] }) {
   const [error,   setError]   = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  // Subject request modal
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [requestSubjectName, setRequestSubjectName] = useState('');
+  const [requestNote, setRequestNote] = useState('');
+  const [requestLoading, setRequestLoading] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
+
   // Derived values
   const selectedYear = YEAR_OPTIONS.find(y => y.value === yearKey);
   const isFirstYear  = yearKey === 'y1';
@@ -84,6 +92,46 @@ export default function NoteUploadForm({ branches }: { branches: Branch[] }) {
   const showSubjectStep   = branchReady;
   const showResourceStep  = branchReady && selectedSubject !== '';
   const showFormBody      = showResourceStep && resourceType !== null;
+
+  // ── Subject request handler ────────────────────────────────────────────
+  async function handleSubjectRequest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!requestSubjectName.trim()) return;
+    setRequestLoading(true);
+    setRequestError(null);
+    try {
+      const res = await fetch('/api/notes/request-subject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subjectName: requestSubjectName.trim(),
+          branch: resolvedBranch || branchName || 'Unknown',
+          semester: resolvedSemester,
+          additionalNote: requestNote.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRequestSent(true);
+        setRequestSubjectName('');
+        setRequestNote('');
+      } else {
+        setRequestError(data.error || 'Failed to send request. Please try again.');
+      }
+    } catch {
+      setRequestError('Network error. Please try again.');
+    } finally {
+      setRequestLoading(false);
+    }
+  }
+
+  function openRequestModal() {
+    setRequestModalOpen(true);
+    setRequestSent(false);
+    setRequestError(null);
+    setRequestSubjectName('');
+    setRequestNote('');
+  }
 
   async function loadSubjects(sem: number, branch: string) {
     setSubjectsLoading(true);
@@ -310,25 +358,143 @@ export default function NoteUploadForm({ branches }: { branches: Branch[] }) {
           {subjectsLoading ? (
             <div className="flex items-center gap-2 text-foreground/40 py-2"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">Loading subjects...</span></div>
           ) : subjects.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {subjects.map(s => (
-                <button key={s.id} type="button" onClick={() => setSelectedSubject(s.name)}
-                  className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
-                    selectedSubject === s.name
-                      ? 'border-primary-600 bg-primary-600 text-white shadow-md'
-                      : 'border-black/5 bg-foreground/5 text-foreground/60 hover:border-primary-500/30 hover:bg-primary-500/5'
-                  }`}>
-                  {s.name}
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {subjects.map(s => (
+                  <button key={s.id} type="button" onClick={() => setSelectedSubject(s.name)}
+                    className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
+                      selectedSubject === s.name
+                        ? 'border-primary-600 bg-primary-600 text-white shadow-md'
+                        : 'border-black/5 bg-foreground/5 text-foreground/60 hover:border-primary-500/30 hover:bg-primary-500/5'
+                    }`}>
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+              {/* Request missing subject */}
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-[10px] text-foreground/30 font-medium">Can&apos;t find your subject?</span>
+                <button type="button" onClick={openRequestModal}
+                  className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary-600 hover:text-primary-700 transition-colors">
+                  <Sparkles className="w-3 h-3" /> Request it
                 </button>
-              ))}
+              </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-2 py-6 text-center">
-              <p className="text-sm font-bold text-foreground/40">No subjects added for this combination yet.</p>
-              <p className="text-xs text-foreground/30">Ask your admin to add subjects for this year/branch in the admin panel.</p>
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+                <Sparkles className="w-6 h-6 text-amber-500" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground/50">No subjects added yet for this combination.</p>
+                <p className="text-xs text-foreground/30 mt-1">Request the admin to add your subject.</p>
+              </div>
+              <button type="button" onClick={openRequestModal}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-primary-700 transition-colors">
+                <SendHorizonal className="w-3.5 h-3.5" /> Request a Subject
+              </button>
             </div>
           )}
         </StepCard>
+      )}
+
+      {/* ── Subject Request Modal ── */}
+      {requestModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-black/10 shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-black/5">
+              <div>
+                <h2 className="font-bold text-base">Request a Subject</h2>
+                <p className="text-[11px] text-foreground/40 mt-0.5">We&apos;ll notify the admin to add it.</p>
+              </div>
+              <button type="button" onClick={() => setRequestModalOpen(false)}
+                className="p-2 rounded-xl hover:bg-foreground/10 text-foreground/40 transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {requestSent ? (
+              /* Success state */
+              <div className="flex flex-col items-center gap-3 py-10 px-6 text-center">
+                <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                  <CheckCircle2 className="w-7 h-7 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="font-bold text-base">Request Sent!</p>
+                  <p className="text-xs text-foreground/40 mt-1">The admin has been notified. Check back soon!</p>
+                </div>
+                <button type="button" onClick={() => setRequestModalOpen(false)}
+                  className="mt-2 px-6 py-2.5 rounded-xl bg-primary-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-primary-700 transition-colors">
+                  Done
+                </button>
+              </div>
+            ) : (
+              /* Form */
+              <form onSubmit={handleSubjectRequest} className="p-6 space-y-4">
+                {/* Context badge */}
+                {branchReady && (
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-3 py-1 rounded-full bg-foreground/5 text-foreground/50 text-[10px] font-bold uppercase tracking-wider">
+                      {resolvedBranch || branchName}
+                    </span>
+                    <span className="px-3 py-1 rounded-full bg-foreground/5 text-foreground/50 text-[10px] font-bold uppercase tracking-wider">
+                      {resolvedSemester === 0 ? '1st Year' : `Sem ${resolvedSemester}`}
+                    </span>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 block">
+                    Subject Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="request-subject-name"
+                    type="text"
+                    value={requestSubjectName}
+                    onChange={e => setRequestSubjectName(e.target.value)}
+                    placeholder="e.g. Data Structures & Algorithms"
+                    className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 outline-none focus:border-primary-500 text-sm transition-colors"
+                    maxLength={120}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 block">
+                    Additional Note <span className="text-foreground/30 font-normal normal-case">(optional)</span>
+                  </label>
+                  <textarea
+                    id="request-subject-note"
+                    value={requestNote}
+                    onChange={e => setRequestNote(e.target.value)}
+                    placeholder="e.g. This is a core subject for 3rd sem CSE students..."
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-black/5 outline-none focus:border-primary-500 text-sm transition-colors resize-none"
+                    maxLength={300}
+                  />
+                </div>
+
+                {requestError && (
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/5 border border-red-500/20 text-red-600 text-xs font-medium">
+                    <AlertCircle className="w-4 h-4 shrink-0" /> {requestError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={requestLoading || !requestSubjectName.trim()}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                >
+                  {requestLoading
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</>
+                    : <><SendHorizonal className="w-4 h-4" /> Send Request to Admin</>
+                  }
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
       )}
 
 
